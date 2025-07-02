@@ -95,9 +95,9 @@ public class BingXApiClient : IDisposable
                 var balance = response.Data.Balance;
                 
                 if (decimal.TryParse(balance.Balance, out var balanceAmount) &&
-                    decimal.TryParse(balance.AvailableBalance, out var availableAmount) &&
-                    decimal.TryParse(balance.CrossUnPnl, out var crossPnl) &&
-                    decimal.TryParse(balance.MaxWithdrawAmount, out var maxWithdraw))
+                    decimal.TryParse(balance.AvailableMargin, out var availableAmount) &&
+                    decimal.TryParse(balance.UnrealizedProfit, out var crossPnl) &&
+                    decimal.TryParse(balance.Equity, out var maxWithdraw))
                 {
                     balances.Add(new FuturesBalance
                     {
@@ -310,7 +310,7 @@ public class BingXApiClient : IDisposable
                 return positions;
             }
 
-            _logger.LogWarning("BingX API returned unsuccessful response for {Endpoint}: {Message}", endpoint, response?.Message);
+            _logger.LogWarning("BingX API returned unsuccessful response for {Endpoint}: {Message}", endpoint, response?.Msg);
             return new List<Position>();
         }
         catch (Exception ex)

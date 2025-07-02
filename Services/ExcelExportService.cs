@@ -20,7 +20,7 @@ public class ExcelExportService
         // Set EPPlus license context for non-commercial use
         try
         {
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            new EPPlusLicense().SetNonCommercialPersonal("CryptoPositionAnalysis");
         }
         catch
         {
