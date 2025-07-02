@@ -147,9 +147,32 @@ class Program
             var bingxSpotTrades = await client.GetSpotTradeHistoryAsync(startTime: thirtyDaysAgo);
             spotTrades.AddRange(bingxSpotTrades);
 
-            // Get futures trade history (last 30 days)
-            var bingxFuturesTrades = await client.GetFuturesTradeHistoryAsync(startTime: thirtyDaysAgo);
-            futuresTrades.AddRange(bingxFuturesTrades);
+            // Get futures trade history (last 30 days, in 6-day chunks due to API limit)
+            var logger = loggerFactory.CreateLogger<Program>();
+            logger.LogInformation("Fetching futures trade history in 6-day chunks...");
+            
+            for (int i = 0; i < 5; i++) // 5 chunks of 6 days = 30 days
+            {
+                var chunkEndTime = DateTimeOffset.UtcNow.AddDays(-i * 6).ToUnixTimeMilliseconds();
+                var chunkStartTime = DateTimeOffset.UtcNow.AddDays(-(i + 1) * 6).ToUnixTimeMilliseconds();
+                
+                try
+                {
+                    var chunkTrades = await client.GetFuturesTradeHistoryAsync(startTime: chunkStartTime, endTime: chunkEndTime);
+                    futuresTrades.AddRange(chunkTrades);
+                    logger.LogInformation("Fetched {Count} futures trades for period {StartDate} to {EndDate}", 
+                        chunkTrades.Count, 
+                        DateTimeOffset.FromUnixTimeMilliseconds(chunkStartTime).ToString("yyyy-MM-dd"),
+                        DateTimeOffset.FromUnixTimeMilliseconds(chunkEndTime).ToString("yyyy-MM-dd"));
+                    
+                    // Small delay between requests to respect rate limits
+                    await Task.Delay(1000);
+                }
+                catch (Exception chunkEx)
+                {
+                    logger.LogWarning("Failed to fetch futures trades for chunk {ChunkIndex}: {Error}", i, chunkEx.Message);
+                }
+            }
 
             // Get current positions
             var bingxPositions = await client.GetPositionsAsync();

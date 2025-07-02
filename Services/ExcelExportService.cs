@@ -292,6 +292,282 @@ public class ExcelExportService
                 }
             }
         }
+    }
+
+    private void CreatePerformanceSummarySheet(ExcelPackage package, List<FuturesTrade> trades)
+    {
+        var worksheet = package.Workbook.Worksheets.Add("Performance Summary");
+        
+        var row = 1;
+
+        // Title
+        worksheet.Cells[row, 1].Value = "Trading Performance Summary";
+        worksheet.Cells[row, 1].Style.Font.Size = 16;
+        worksheet.Cells[row, 1].Style.Font.Bold = true;
+        row += 2;
+
+        // Overall Statistics
+        worksheet.Cells[row, 1].Value = "Overall Performance";
+        worksheet.Cells[row, 1].Style.Font.Bold = true;
+        row++;
+
+        var totalPnl = trades.Sum(t => t.RealizedPnl);
+        var totalTrades = trades.Count;
+        var winningTrades = trades.Count(t => t.RealizedPnl > 0);
+        var losingTrades = trades.Count(t => t.RealizedPnl < 0);
+        var winRate = totalTrades > 0 ? (double)winningTrades / totalTrades * 100 : 0;
+        var avgPnl = totalTrades > 0 ? totalPnl / totalTrades : 0;
+        var avgWin = winningTrades > 0 ? trades.Where(t => t.RealizedPnl > 0).Average(t => t.RealizedPnl) : 0;
+        var avgLoss = losingTrades > 0 ? trades.Where(t => t.RealizedPnl < 0).Average(t => t.RealizedPnl) : 0;
+        var maxWin = trades.Any() ? trades.Max(t => t.RealizedPnl) : 0;
+        var maxLoss = trades.Any() ? trades.Min(t => t.RealizedPnl) : 0;
+
+        worksheet.Cells[row, 1].Value = "Total P&L:";
+        worksheet.Cells[row, 2].Value = totalPnl;
+        worksheet.Cells[row, 2].Style.Font.Color.SetColor(totalPnl >= 0 ? Color.Green : Color.Red);
+        row++;
+
+        worksheet.Cells[row, 1].Value = "Total Trades:";
+        worksheet.Cells[row, 2].Value = totalTrades;
+        row++;
+
+        worksheet.Cells[row, 1].Value = "Winning Trades:";
+        worksheet.Cells[row, 2].Value = winningTrades;
+        row++;
+
+        worksheet.Cells[row, 1].Value = "Losing Trades:";
+        worksheet.Cells[row, 2].Value = losingTrades;
+        row++;
+
+        worksheet.Cells[row, 1].Value = "Win Rate:";
+        worksheet.Cells[row, 2].Value = $"{winRate:F1}%";
+        row++;
+
+        worksheet.Cells[row, 1].Value = "Average P&L per Trade:";
+        worksheet.Cells[row, 2].Value = avgPnl;
+        worksheet.Cells[row, 2].Style.Font.Color.SetColor(avgPnl >= 0 ? Color.Green : Color.Red);
+        row++;
+
+        worksheet.Cells[row, 1].Value = "Average Win:";
+        worksheet.Cells[row, 2].Value = avgWin;
+        worksheet.Cells[row, 2].Style.Font.Color.SetColor(Color.Green);
+        row++;
+
+        worksheet.Cells[row, 1].Value = "Average Loss:";
+        worksheet.Cells[row, 2].Value = avgLoss;
+        worksheet.Cells[row, 2].Style.Font.Color.SetColor(Color.Red);
+        row++;
+
+        worksheet.Cells[row, 1].Value = "Best Trade:";
+        worksheet.Cells[row, 2].Value = maxWin;
+        worksheet.Cells[row, 2].Style.Font.Color.SetColor(Color.Green);
+        row++;
+
+        worksheet.Cells[row, 1].Value = "Worst Trade:";
+        worksheet.Cells[row, 2].Value = maxLoss;
+        worksheet.Cells[row, 2].Style.Font.Color.SetColor(Color.Red);
+        row += 2;
+
+        // Risk Metrics
+        worksheet.Cells[row, 1].Value = "Risk Metrics";
+        worksheet.Cells[row, 1].Style.Font.Bold = true;
+        row++;
+
+        var profitFactor = Math.Abs(avgLoss) > 0 ? avgWin / Math.Abs(avgLoss) : 0;
+        worksheet.Cells[row, 1].Value = "Profit Factor:";
+        worksheet.Cells[row, 2].Value = profitFactor;
+        row++;
+
+        var totalVolume = trades.Sum(t => t.CumulativeQuoteQuantity);
+        worksheet.Cells[row, 1].Value = "Total Volume:";
+        worksheet.Cells[row, 2].Value = totalVolume;
+        row++;
+
+        var totalFees = trades.Sum(t => t.Fee);
+        worksheet.Cells[row, 1].Value = "Total Fees:";
+        worksheet.Cells[row, 2].Value = totalFees;
+        row++;
+
+        // Auto-fit columns
+        worksheet.Cells.AutoFitColumns();
+    }
+
+    private void CreateTradePerformanceSheet(ExcelPackage package, List<FuturesTrade> trades)
+    {
+        var worksheet = package.Workbook.Worksheets.Add("Trade Performance");
+        
+        // Headers
+        var headers = new[] { "Date", "Symbol", "Side", "Quantity", "Entry Price", "Exit Price", "Realized P&L", "Fee", "Net P&L", "ROE %", "Duration" };
+        for (int i = 0; i < headers.Length; i++)
+        {
+            worksheet.Cells[1, i + 1].Value = headers[i];
+        }
+
+        // Data
+        var row = 2;
+        foreach (var trade in trades.OrderByDescending(t => t.Time))
+        {
+            var roe = trade.Price > 0 ? ((trade.AvgPrice - trade.Price) / trade.Price * 100 * (trade.Side == "BUY" ? 1 : -1)) : 0;
+            var netPnl = trade.RealizedPnl - trade.Fee;
+            
+            worksheet.Cells[row, 1].Value = trade.TradeDateTime;
+            worksheet.Cells[row, 2].Value = trade.Symbol;
+            worksheet.Cells[row, 3].Value = trade.Side;
+            worksheet.Cells[row, 4].Value = trade.ExecutedQuantity;
+            worksheet.Cells[row, 5].Value = trade.Price;
+            worksheet.Cells[row, 6].Value = trade.AvgPrice;
+            worksheet.Cells[row, 7].Value = trade.RealizedPnl;
+            worksheet.Cells[row, 8].Value = trade.Fee;
+            worksheet.Cells[row, 9].Value = netPnl;
+            worksheet.Cells[row, 10].Value = roe;
+            worksheet.Cells[row, 11].Value = ""; // Duration calculation would need order pairing
+            
+            // Color-code P&L
+            if (trade.RealizedPnl > 0)
+            {
+                worksheet.Cells[row, 7].Style.Font.Color.SetColor(Color.Green);
+                worksheet.Cells[row, 9].Style.Font.Color.SetColor(netPnl > 0 ? Color.Green : Color.Red);
+            }
+            else if (trade.RealizedPnl < 0)
+            {
+                worksheet.Cells[row, 7].Style.Font.Color.SetColor(Color.Red);
+                worksheet.Cells[row, 9].Style.Font.Color.SetColor(Color.Red);
+            }
+            
+            row++;
+        }
+
+        FormatWorksheet(worksheet, headers.Length, row - 1);
+    }
+
+    private void CreateMonthlyPerformanceSheet(ExcelPackage package, List<FuturesTrade> trades)
+    {
+        var worksheet = package.Workbook.Worksheets.Add("Monthly Performance");
+        
+        // Group trades by month
+        var monthlyData = trades
+            .GroupBy(t => new { t.TradeDateTime.Year, t.TradeDateTime.Month })
+            .Select(g => new
+            {
+                Period = $"{g.Key.Year}-{g.Key.Month:00}",
+                TotalPnl = g.Sum(t => t.RealizedPnl),
+                TotalTrades = g.Count(),
+                WinningTrades = g.Count(t => t.RealizedPnl > 0),
+                LosingTrades = g.Count(t => t.RealizedPnl < 0),
+                TotalVolume = g.Sum(t => t.CumulativeQuoteQuantity),
+                TotalFees = g.Sum(t => t.Fee)
+            })
+            .OrderBy(x => x.Period)
+            .ToList();
+
+        // Headers
+        var headers = new[] { "Month", "Total P&L", "Trades", "Wins", "Losses", "Win Rate %", "Volume", "Fees", "Net P&L" };
+        for (int i = 0; i < headers.Length; i++)
+        {
+            worksheet.Cells[1, i + 1].Value = headers[i];
+        }
+
+        // Data
+        var row = 2;
+        foreach (var monthData in monthlyData)
+        {
+            var winRate = monthData.TotalTrades > 0 ? (double)monthData.WinningTrades / monthData.TotalTrades * 100 : 0;
+            var netPnl = monthData.TotalPnl - monthData.TotalFees;
+            
+            worksheet.Cells[row, 1].Value = monthData.Period;
+            worksheet.Cells[row, 2].Value = monthData.TotalPnl;
+            worksheet.Cells[row, 3].Value = monthData.TotalTrades;
+            worksheet.Cells[row, 4].Value = monthData.WinningTrades;
+            worksheet.Cells[row, 5].Value = monthData.LosingTrades;
+            worksheet.Cells[row, 6].Value = winRate;
+            worksheet.Cells[row, 7].Value = monthData.TotalVolume;
+            worksheet.Cells[row, 8].Value = monthData.TotalFees;
+            worksheet.Cells[row, 9].Value = netPnl;
+            
+            // Color-code P&L
+            worksheet.Cells[row, 2].Style.Font.Color.SetColor(monthData.TotalPnl >= 0 ? Color.Green : Color.Red);
+            worksheet.Cells[row, 9].Style.Font.Color.SetColor(netPnl >= 0 ? Color.Green : Color.Red);
+            
+            row++;
+        }
+
+        FormatWorksheet(worksheet, headers.Length, row - 1);
+    }
+
+    private void CreateSymbolPerformanceSheet(ExcelPackage package, List<FuturesTrade> trades)
+    {
+        var worksheet = package.Workbook.Worksheets.Add("Symbol Performance");
+        
+        // Group trades by symbol
+        var symbolData = trades
+            .GroupBy(t => t.Symbol)
+            .Select(g => new
+            {
+                Symbol = g.Key,
+                TotalPnl = g.Sum(t => t.RealizedPnl),
+                TotalTrades = g.Count(),
+                WinningTrades = g.Count(t => t.RealizedPnl > 0),
+                LosingTrades = g.Count(t => t.RealizedPnl < 0),
+                TotalVolume = g.Sum(t => t.CumulativeQuoteQuantity),
+                TotalFees = g.Sum(t => t.Fee),
+                AvgPnl = g.Average(t => t.RealizedPnl),
+                MaxWin = g.Max(t => t.RealizedPnl),
+                MaxLoss = g.Min(t => t.RealizedPnl)
+            })
+            .OrderByDescending(x => x.TotalPnl)
+            .ToList();
+
+        // Headers
+        var headers = new[] { "Symbol", "Total P&L", "Trades", "Wins", "Losses", "Win Rate %", "Avg P&L", "Best Trade", "Worst Trade", "Volume", "Fees" };
+        for (int i = 0; i < headers.Length; i++)
+        {
+            worksheet.Cells[1, i + 1].Value = headers[i];
+        }
+
+        // Data
+        var row = 2;
+        foreach (var symbol in symbolData)
+        {
+            var winRate = symbol.TotalTrades > 0 ? (double)symbol.WinningTrades / symbol.TotalTrades * 100 : 0;
+            
+            worksheet.Cells[row, 1].Value = symbol.Symbol;
+            worksheet.Cells[row, 2].Value = symbol.TotalPnl;
+            worksheet.Cells[row, 3].Value = symbol.TotalTrades;
+            worksheet.Cells[row, 4].Value = symbol.WinningTrades;
+            worksheet.Cells[row, 5].Value = symbol.LosingTrades;
+            worksheet.Cells[row, 6].Value = winRate;
+            worksheet.Cells[row, 7].Value = symbol.AvgPnl;
+            worksheet.Cells[row, 8].Value = symbol.MaxWin;
+            worksheet.Cells[row, 9].Value = symbol.MaxLoss;
+            worksheet.Cells[row, 10].Value = symbol.TotalVolume;
+            worksheet.Cells[row, 11].Value = symbol.TotalFees;
+            
+            // Color-code P&L
+            worksheet.Cells[row, 2].Style.Font.Color.SetColor(symbol.TotalPnl >= 0 ? Color.Green : Color.Red);
+            worksheet.Cells[row, 7].Style.Font.Color.SetColor(symbol.AvgPnl >= 0 ? Color.Green : Color.Red);
+            worksheet.Cells[row, 8].Style.Font.Color.SetColor(Color.Green);
+            worksheet.Cells[row, 9].Style.Font.Color.SetColor(Color.Red);
+            
+            row++;
+        }
+
+        FormatWorksheet(worksheet, headers.Length, row - 1);
+    }
+
+    private void CreateSummarySheet(ExcelPackage package, List<Balance> spotBalances, List<FuturesBalance> futuresBalances, List<Position> positions)
+    {
+        var worksheet = package.Workbook.Worksheets.Add("Portfolio Summary");
+        
+        var row = 1;
+
+        // Report metadata
+        worksheet.Cells[row, 1].Value = "Portfolio Analysis Report";
+        worksheet.Cells[row, 1].Style.Font.Size = 16;
+        worksheet.Cells[row, 1].Style.Font.Bold = true;
+        row += 2;
+
+        worksheet.Cells[row, 1].Value = "Generated:";
+        worksheet.Cells[row, 2].Value = DateTime.UtcNow;
         worksheet.Cells[row, 2].Style.Numberformat.Format = "yyyy-mm-dd hh:mm:ss";
         row += 2;
 
