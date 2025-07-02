@@ -354,7 +354,8 @@ public class ExcelExportService
         using (var range = worksheet.Cells[1, 1, 1, columns])
         {
             range.Style.Font.Bold = true;
-            // Set solid pattern background (EPPlus version compatibility)
+            // Set fill pattern first, then background color (EPPlus requirement)
+            range.Style.Fill.PatternType = ExcelFillStyle.Solid;
             range.Style.Fill.BackgroundColor.SetColor(Color.LightBlue);
             range.Style.Border.BorderAround(ExcelBorderStyle.Thin);
         }
