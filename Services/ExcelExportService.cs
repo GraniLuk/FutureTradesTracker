@@ -86,6 +86,22 @@ public class ExcelExportService
                 sheetsCreated++;
             }
 
+            // Create Performance Analysis sheets (if we have futures trades)
+            if (futuresTrades.Count > 0)
+            {
+                CreatePerformanceSummarySheet(package, futuresTrades);
+                sheetsCreated++;
+                
+                CreateTradePerformanceSheet(package, futuresTrades);
+                sheetsCreated++;
+                
+                CreateMonthlyPerformanceSheet(package, futuresTrades);
+                sheetsCreated++;
+                
+                CreateSymbolPerformanceSheet(package, futuresTrades);
+                sheetsCreated++;
+            }
+
             // Create Summary sheet
             CreateSummarySheet(package, spotBalances, futuresBalances, positions);
             sheetsCreated++;
@@ -276,22 +292,6 @@ public class ExcelExportService
                 }
             }
         }
-    }
-
-    private void CreateSummarySheet(ExcelPackage package, List<Balance> spotBalances, List<FuturesBalance> futuresBalances, List<Position> positions)
-    {
-        var worksheet = package.Workbook.Worksheets.Add("Portfolio Summary");
-        
-        var row = 1;
-
-        // Report metadata
-        worksheet.Cells[row, 1].Value = "Portfolio Analysis Report";
-        worksheet.Cells[row, 1].Style.Font.Size = 16;
-        worksheet.Cells[row, 1].Style.Font.Bold = true;
-        row += 2;
-
-        worksheet.Cells[row, 1].Value = "Generated:";
-        worksheet.Cells[row, 2].Value = DateTime.UtcNow;
         worksheet.Cells[row, 2].Style.Numberformat.Format = "yyyy-mm-dd hh:mm:ss";
         row += 2;
 
