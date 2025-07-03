@@ -226,17 +226,22 @@ public class BingXApiClient : IDisposable
                         decimal.TryParse(order.Commission, out var commission) &&
                         decimal.TryParse(order.RealizedPnl, out var realizedPnl))
                     {
+                        // Parse optional fields
+                        decimal.TryParse(order.StopPrice, out var stopPrice);
+                        
                         trades.Add(new FuturesTrade
                         {
                             Symbol = order.Symbol,
                             OrderId = order.OrderId,
                             Side = order.Side,
+                            PositionSide = order.PositionSide,
                             OrderType = order.Type,
                             Quantity = quantity,
                             Price = price,
                             AvgPrice = avgPrice,
                             ExecutedQuantity = executedQty,
                             CumulativeQuoteQuantity = cumQuote,
+                            StopPrice = stopPrice == 0 ? null : stopPrice,
                             Status = order.Status,
                             TimeInForce = order.TimeInForce,
                             Time = order.Time,
@@ -244,6 +249,10 @@ public class BingXApiClient : IDisposable
                             Fee = commission,
                             FeeAsset = order.CommissionAsset,
                             RealizedPnl = realizedPnl,
+                            Leverage = order.Leverage,
+                            ReduceOnly = order.ReduceOnly,
+                            WorkingType = order.WorkingType,
+                            ClientOrderId = order.ClientOrderId,
                             Exchange = "BingX"
                         });
                     }

@@ -212,8 +212,12 @@ public class ExcelExportService
     {
         var worksheet = package.Workbook.Worksheets.Add("Futures Trading History");
         
-        // Headers
-        var headers = new[] { "Exchange", "Symbol", "Order ID", "Side", "Type", "Quantity", "Price", "Avg Price", "Executed Qty", "Status", "Fee", "Fee Asset", "Realized PnL", "Trade Time" };
+        // Headers - Enhanced with new fields from BingX API
+        var headers = new[] { 
+            "Exchange", "Symbol", "Order ID", "Side", "Position Side", "Type", "Quantity", 
+            "Price", "Avg Price", "Executed Qty", "Stop Price", "Status", "Leverage", 
+            "Fee", "Fee Asset", "Realized PnL", "Reduce Only", "Working Type", "Trade Time" 
+        };
         for (int i = 0; i < headers.Length; i++)
         {
             worksheet.Cells[1, i + 1].Value = headers[i];
@@ -227,16 +231,33 @@ public class ExcelExportService
             worksheet.Cells[row, 2].Value = trade.Symbol;
             worksheet.Cells[row, 3].Value = trade.OrderId;
             worksheet.Cells[row, 4].Value = trade.Side;
-            worksheet.Cells[row, 5].Value = trade.OrderType;
-            worksheet.Cells[row, 6].Value = trade.Quantity;
-            worksheet.Cells[row, 7].Value = trade.Price;
-            worksheet.Cells[row, 8].Value = trade.AvgPrice;
-            worksheet.Cells[row, 9].Value = trade.ExecutedQuantity;
-            worksheet.Cells[row, 10].Value = trade.Status;
-            worksheet.Cells[row, 11].Value = trade.Fee;
-            worksheet.Cells[row, 12].Value = trade.FeeAsset;
-            worksheet.Cells[row, 13].Value = trade.RealizedPnl;
-            worksheet.Cells[row, 14].Value = trade.TradeDateTime;
+            worksheet.Cells[row, 5].Value = trade.PositionSide ?? ""; // New field
+            worksheet.Cells[row, 6].Value = trade.OrderType;
+            worksheet.Cells[row, 7].Value = trade.Quantity;
+            worksheet.Cells[row, 8].Value = trade.Price;
+            worksheet.Cells[row, 9].Value = trade.AvgPrice;
+            worksheet.Cells[row, 10].Value = trade.ExecutedQuantity;
+            worksheet.Cells[row, 11].Value = trade.StopPrice ?? 0; // New field
+            worksheet.Cells[row, 12].Value = trade.Status;
+            worksheet.Cells[row, 13].Value = trade.Leverage ?? ""; // New field
+            worksheet.Cells[row, 14].Value = trade.Fee;
+            worksheet.Cells[row, 15].Value = trade.FeeAsset;
+            worksheet.Cells[row, 16].Value = trade.RealizedPnl;
+            worksheet.Cells[row, 17].Value = trade.ReduceOnly?.ToString() ?? ""; // New field
+            worksheet.Cells[row, 18].Value = trade.WorkingType ?? ""; // New field
+            worksheet.Cells[row, 19].Value = trade.TradeDateTime;
+            
+            // Color-code PnL
+            var pnlCell = worksheet.Cells[row, 16];
+            if (trade.RealizedPnl > 0)
+            {
+                pnlCell.Style.Font.Color.SetColor(Color.Green);
+            }
+            else if (trade.RealizedPnl < 0)
+            {
+                pnlCell.Style.Font.Color.SetColor(Color.Red);
+            }
+            
             row++;
         }
 
@@ -396,8 +417,8 @@ public class ExcelExportService
     {
         var worksheet = package.Workbook.Worksheets.Add("Trade Performance");
         
-        // Headers
-        var headers = new[] { "Date", "Symbol", "Side", "Quantity", "Entry Price", "Exit Price", "Realized P&L", "Fee", "Net P&L", "ROE %", "Duration" };
+        // Headers - Enhanced with position side
+        var headers = new[] { "Date", "Symbol", "Side", "Position Side", "Type", "Quantity", "Entry Price", "Exit Price", "Realized P&L", "Fee", "Net P&L", "ROE %", "Leverage", "Duration" };
         for (int i = 0; i < headers.Length; i++)
         {
             worksheet.Cells[1, i + 1].Value = headers[i];
@@ -413,25 +434,28 @@ public class ExcelExportService
             worksheet.Cells[row, 1].Value = trade.TradeDateTime;
             worksheet.Cells[row, 2].Value = trade.Symbol;
             worksheet.Cells[row, 3].Value = trade.Side;
-            worksheet.Cells[row, 4].Value = trade.ExecutedQuantity;
-            worksheet.Cells[row, 5].Value = trade.Price;
-            worksheet.Cells[row, 6].Value = trade.AvgPrice;
-            worksheet.Cells[row, 7].Value = trade.RealizedPnl;
-            worksheet.Cells[row, 8].Value = trade.Fee;
-            worksheet.Cells[row, 9].Value = netPnl;
-            worksheet.Cells[row, 10].Value = roe;
-            worksheet.Cells[row, 11].Value = ""; // Duration calculation would need order pairing
+            worksheet.Cells[row, 4].Value = trade.PositionSide ?? "";
+            worksheet.Cells[row, 5].Value = trade.OrderType;
+            worksheet.Cells[row, 6].Value = trade.ExecutedQuantity;
+            worksheet.Cells[row, 7].Value = trade.Price;
+            worksheet.Cells[row, 8].Value = trade.AvgPrice;
+            worksheet.Cells[row, 9].Value = trade.RealizedPnl;
+            worksheet.Cells[row, 10].Value = trade.Fee;
+            worksheet.Cells[row, 11].Value = netPnl;
+            worksheet.Cells[row, 12].Value = roe;
+            worksheet.Cells[row, 13].Value = trade.Leverage ?? "";
+            worksheet.Cells[row, 14].Value = ""; // Duration calculation would need order pairing
             
             // Color-code P&L
             if (trade.RealizedPnl > 0)
             {
-                worksheet.Cells[row, 7].Style.Font.Color.SetColor(Color.Green);
-                worksheet.Cells[row, 9].Style.Font.Color.SetColor(netPnl > 0 ? Color.Green : Color.Red);
+                worksheet.Cells[row, 9].Style.Font.Color.SetColor(Color.Green);
+                worksheet.Cells[row, 11].Style.Font.Color.SetColor(netPnl > 0 ? Color.Green : Color.Red);
             }
             else if (trade.RealizedPnl < 0)
             {
-                worksheet.Cells[row, 7].Style.Font.Color.SetColor(Color.Red);
                 worksheet.Cells[row, 9].Style.Font.Color.SetColor(Color.Red);
+                worksheet.Cells[row, 11].Style.Font.Color.SetColor(Color.Red);
             }
             
             row++;

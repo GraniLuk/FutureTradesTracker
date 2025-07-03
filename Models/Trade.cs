@@ -65,6 +65,9 @@ public class FuturesTrade
     [JsonPropertyName("side")]
     public string Side { get; set; } = string.Empty;
 
+    [JsonPropertyName("positionSide")]
+    public string? PositionSide { get; set; }
+
     [JsonPropertyName("type")]
     public string OrderType { get; set; } = string.Empty;
 
@@ -82,6 +85,9 @@ public class FuturesTrade
 
     [JsonPropertyName("cumQuote")]
     public decimal CumulativeQuoteQuantity { get; set; }
+
+    [JsonPropertyName("stopPrice")]
+    public decimal? StopPrice { get; set; }
 
     [JsonPropertyName("status")]
     public string Status { get; set; } = string.Empty;
@@ -103,6 +109,18 @@ public class FuturesTrade
 
     [JsonPropertyName("realizedPnl")]
     public decimal RealizedPnl { get; set; }
+
+    [JsonPropertyName("leverage")]
+    public string? Leverage { get; set; }
+
+    [JsonPropertyName("reduceOnly")]
+    public bool? ReduceOnly { get; set; }
+
+    [JsonPropertyName("workingType")]
+    public string? WorkingType { get; set; }
+
+    [JsonPropertyName("clientOrderId")]
+    public string? ClientOrderId { get; set; }
 
     public DateTime TradeDateTime => DateTimeOffset.FromUnixTimeMilliseconds(Time).DateTime;
 

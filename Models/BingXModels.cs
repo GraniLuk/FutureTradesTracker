@@ -146,6 +146,9 @@ public class BingXFuturesTradeOrder
     [JsonPropertyName("side")]
     public string Side { get; set; } = string.Empty;
 
+    [JsonPropertyName("positionSide")]
+    public string PositionSide { get; set; } = string.Empty;
+
     [JsonPropertyName("type")]
     public string Type { get; set; } = string.Empty;
 
@@ -155,20 +158,26 @@ public class BingXFuturesTradeOrder
     [JsonPropertyName("price")]
     public string Price { get; set; } = "0";
 
-    [JsonPropertyName("avgPrice")]
-    public string AvgPrice { get; set; } = "0";
-
     [JsonPropertyName("executedQty")]
     public string ExecutedQty { get; set; } = "0";
+
+    [JsonPropertyName("avgPrice")]
+    public string AvgPrice { get; set; } = "0";
 
     [JsonPropertyName("cumQuote")]
     public string CumQuote { get; set; } = "0";
 
+    [JsonPropertyName("stopPrice")]
+    public string StopPrice { get; set; } = "0";
+
+    [JsonPropertyName("profit")]
+    public string Profit { get; set; } = "0";
+
+    [JsonPropertyName("commission")]
+    public string Commission { get; set; } = "0";
+
     [JsonPropertyName("status")]
     public string Status { get; set; } = string.Empty;
-
-    [JsonPropertyName("timeInForce")]
-    public string TimeInForce { get; set; } = string.Empty;
 
     [JsonPropertyName("time")]
     public long Time { get; set; }
@@ -176,14 +185,124 @@ public class BingXFuturesTradeOrder
     [JsonPropertyName("updateTime")]
     public long UpdateTime { get; set; }
 
-    [JsonPropertyName("commission")]
-    public string Commission { get; set; } = "0";
+    [JsonPropertyName("clientOrderId")]
+    public string ClientOrderId { get; set; } = string.Empty;
+
+    [JsonPropertyName("leverage")]
+    public string Leverage { get; set; } = string.Empty;
+
+    [JsonPropertyName("takeProfit")]
+    public BingXTakeProfitInfo? TakeProfit { get; set; }
+
+    [JsonPropertyName("stopLoss")]
+    public BingXStopLossInfo? StopLoss { get; set; }
+
+    [JsonPropertyName("advanceAttr")]
+    public int AdvanceAttr { get; set; }
+
+    [JsonPropertyName("positionID")]
+    public long PositionID { get; set; }
+
+    [JsonPropertyName("takeProfitEntrustPrice")]
+    public decimal TakeProfitEntrustPrice { get; set; }
+
+    [JsonPropertyName("stopLossEntrustPrice")]
+    public decimal StopLossEntrustPrice { get; set; }
+
+    [JsonPropertyName("orderType")]
+    public string OrderType { get; set; } = string.Empty;
+
+    [JsonPropertyName("workingType")]
+    public string WorkingType { get; set; } = string.Empty;
+
+    [JsonPropertyName("onlyOnePosition")]
+    public bool OnlyOnePosition { get; set; }
+
+    [JsonPropertyName("reduceOnly")]
+    public bool ReduceOnly { get; set; }
+
+    [JsonPropertyName("postOnly")]
+    public bool PostOnly { get; set; }
+
+    [JsonPropertyName("stopGuaranteed")]
+    public string StopGuaranteed { get; set; } = string.Empty;
+
+    [JsonPropertyName("triggerOrderId")]
+    public long TriggerOrderId { get; set; }
+
+    [JsonPropertyName("trailingStopRate")]
+    public decimal TrailingStopRate { get; set; }
+
+    [JsonPropertyName("trailingStopDistance")]
+    public decimal TrailingStopDistance { get; set; }
+
+    [JsonPropertyName("is_twap")]
+    public bool IsTwap { get; set; }
+
+    [JsonPropertyName("mainOrderId")]
+    public string MainOrderId { get; set; } = string.Empty;
+
+    [JsonPropertyName("priceRate")]
+    public string PriceRate { get; set; } = string.Empty;
+
+    [JsonPropertyName("actPrice")]
+    public string ActPrice { get; set; } = string.Empty;
+
+    [JsonPropertyName("closePosition")]
+    public string ClosePosition { get; set; } = string.Empty;
+
+    // Legacy property name mappings for backward compatibility
+    [JsonPropertyName("timeInForce")]
+    public string TimeInForce { get; set; } = string.Empty;
 
     [JsonPropertyName("commissionAsset")]
     public string CommissionAsset { get; set; } = string.Empty;
 
     [JsonPropertyName("realizedPnl")]
     public string RealizedPnl { get; set; } = "0";
+}
+
+// Supporting classes for takeProfit and stopLoss
+public class BingXTakeProfitInfo
+{
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
+    [JsonPropertyName("quantity")]
+    public decimal Quantity { get; set; }
+
+    [JsonPropertyName("stopPrice")]
+    public decimal StopPrice { get; set; }
+
+    [JsonPropertyName("price")]
+    public decimal Price { get; set; }
+
+    [JsonPropertyName("workingType")]
+    public string WorkingType { get; set; } = string.Empty;
+
+    [JsonPropertyName("stopGuaranteed")]
+    public string StopGuaranteed { get; set; } = string.Empty;
+}
+
+public class BingXStopLossInfo
+{
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
+    [JsonPropertyName("quantity")]
+    public decimal Quantity { get; set; }
+
+    [JsonPropertyName("stopPrice")]
+    public decimal StopPrice { get; set; }
+
+    [JsonPropertyName("price")]
+    public decimal Price { get; set; }
+
+    [JsonPropertyName("workingType")]
+    public string WorkingType { get; set; } = string.Empty;
+
+    [JsonPropertyName("stopGuaranteed")]
+    public string StopGuaranteed { get; set; } = string.Empty;
 }
 
 // BingX Positions response - data is an array directly
