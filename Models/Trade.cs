@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using CryptoPositionAnalysis.Services;
 
 namespace CryptoPositionAnalysis.Models;
 
@@ -52,77 +53,79 @@ public class Trade
     public DateTime TradeDateTime => DateTimeOffset.FromUnixTimeMilliseconds(TradeTime).DateTime;
 
     public string Exchange { get; set; } = string.Empty;
-}
 
-public class FuturesTrade
-{
-    [JsonPropertyName("symbol")]
-    public string Symbol { get; set; } = string.Empty;
+    /// <summary>
+    /// Creates a Trade instance from a BingX trade order
+    /// </summary>
+    /// <param name="bingxOrder">The BingX trade order</param>
+    /// <returns>A Trade instance with mapped values from the BingX order</returns>
+    public static Trade FromBingXOrder(BingXTradeOrder bingxOrder)
+    {
+        var trade = new Trade
+        {
+            Symbol = bingxOrder.Symbol,
+            OrderId = bingxOrder.OrderId,
+            Side = bingxOrder.Side,
+            OrderType = bingxOrder.Type,
+            Status = bingxOrder.Status,
+            TimeInForce = bingxOrder.TimeInForce,
+            TradeTime = bingxOrder.Time,
+            UpdateTime = bingxOrder.UpdateTime,
+            Exchange = "BingX"
+        };
 
-    [JsonPropertyName("orderId")]
-    public long OrderId { get; set; }
+        // Parse decimal values with error handling
+        if (decimal.TryParse(bingxOrder.OrigQty, out var quantity))
+            trade.Quantity = quantity;
 
-    [JsonPropertyName("side")]
-    public string Side { get; set; } = string.Empty;
+        if (decimal.TryParse(bingxOrder.Price, out var price))
+            trade.Price = price;
 
-    [JsonPropertyName("positionSide")]
-    public string? PositionSide { get; set; }
+        if (decimal.TryParse(bingxOrder.ExecutedQty, out var executedQty))
+            trade.ExecutedQuantity = executedQty;
 
-    [JsonPropertyName("type")]
-    public string OrderType { get; set; } = string.Empty;
+        if (decimal.TryParse(bingxOrder.CummulativeQuoteQty, out var cumQuote))
+            trade.CumulativeQuoteQuantity = cumQuote;
 
-    [JsonPropertyName("origQty")]
-    public decimal Quantity { get; set; }
+        return trade;
+    }
 
-    [JsonPropertyName("price")]
-    public decimal Price { get; set; }
+    /// <summary>
+    /// Creates a Trade instance from a Bybit order
+    /// </summary>
+    /// <param name="bybitOrder">The Bybit order</param>
+    /// <returns>A Trade instance with mapped values from the Bybit order</returns>
+    public static Trade FromBybitOrder(BybitOrder bybitOrder)
+    {
+        var trade = new Trade
+        {
+            Symbol = bybitOrder.Symbol,
+            Side = bybitOrder.Side,
+            OrderType = bybitOrder.OrderType,
+            Status = bybitOrder.OrderStatus,
+            TimeInForce = bybitOrder.TimeInForce,
+            Exchange = "Bybit"
+        };
 
-    [JsonPropertyName("avgPrice")]
-    public decimal AvgPrice { get; set; }
+        // Parse required fields with error handling
+        if (long.TryParse(bybitOrder.OrderId, out var orderId))
+            trade.OrderId = orderId;
 
-    [JsonPropertyName("executedQty")]
-    public decimal ExecutedQuantity { get; set; }
+        if (decimal.TryParse(bybitOrder.Qty, out var quantity))
+            trade.Quantity = quantity;
 
-    [JsonPropertyName("cumQuote")]
-    public decimal CumulativeQuoteQuantity { get; set; }
+        if (decimal.TryParse(bybitOrder.Price, out var price))
+            trade.Price = price;
 
-    [JsonPropertyName("stopPrice")]
-    public decimal? StopPrice { get; set; }
+        if (decimal.TryParse(bybitOrder.CumExecQty, out var executedQty))
+            trade.ExecutedQuantity = executedQty;
 
-    [JsonPropertyName("status")]
-    public string Status { get; set; } = string.Empty;
+        if (long.TryParse(bybitOrder.CreatedTime, out var createdTime))
+            trade.TradeTime = createdTime;
 
-    [JsonPropertyName("timeInForce")]
-    public string TimeInForce { get; set; } = string.Empty;
+        if (long.TryParse(bybitOrder.UpdatedTime, out var updatedTime))
+            trade.UpdateTime = updatedTime;
 
-    [JsonPropertyName("time")]
-    public long Time { get; set; }
-
-    [JsonPropertyName("updateTime")]
-    public long UpdateTime { get; set; }
-
-    [JsonPropertyName("commission")]
-    public decimal Fee { get; set; }
-
-    [JsonPropertyName("commissionAsset")]
-    public string FeeAsset { get; set; } = string.Empty;
-
-    [JsonPropertyName("realizedPnl")]
-    public decimal RealizedPnl { get; set; }
-
-    [JsonPropertyName("leverage")]
-    public string? Leverage { get; set; }
-
-    [JsonPropertyName("reduceOnly")]
-    public bool? ReduceOnly { get; set; }
-
-    [JsonPropertyName("workingType")]
-    public string? WorkingType { get; set; }
-
-    [JsonPropertyName("clientOrderId")]
-    public string? ClientOrderId { get; set; }
-
-    public DateTime TradeDateTime => DateTimeOffset.FromUnixTimeMilliseconds(Time).DateTime;
-
-    public string Exchange { get; set; } = string.Empty;
+        return trade;
+    }
 }

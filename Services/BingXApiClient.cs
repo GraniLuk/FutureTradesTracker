@@ -148,33 +148,9 @@ public class BingXApiClient : IDisposable
             
             if (response?.IsSuccess == true && response.Data?.Orders != null)
             {
-                var trades = new List<Trade>();
-                
-                foreach (var order in response.Data.Orders)
-                {
-                    if (decimal.TryParse(order.OrigQty, out var quantity) &&
-                        decimal.TryParse(order.Price, out var price) &&
-                        decimal.TryParse(order.ExecutedQty, out var executedQty) &&
-                        decimal.TryParse(order.CummulativeQuoteQty, out var cumQuote))
-                    {
-                        trades.Add(new Trade
-                        {
-                            Symbol = order.Symbol,
-                            OrderId = order.OrderId,
-                            Side = order.Side,
-                            OrderType = order.Type,
-                            Quantity = quantity,
-                            Price = price,
-                            ExecutedQuantity = executedQty,
-                            CumulativeQuoteQuantity = cumQuote,
-                            Status = order.Status,
-                            TimeInForce = order.TimeInForce,
-                            TradeTime = order.Time,
-                            UpdateTime = order.UpdateTime,
-                            Exchange = "BingX"
-                        });
-                    }
-                }
+                var trades = response.Data.Orders
+                    .Select(order => Trade.FromBingXOrder(order))
+                    .ToList();
                 
                 _logger.LogApiSuccess("BingX", endpoint, trades.Count);
                 return trades;
@@ -214,49 +190,9 @@ public class BingXApiClient : IDisposable
             
             if (response?.IsSuccess == true && response.Data?.Orders != null)
             {
-                var trades = new List<FuturesTrade>();
-                
-                foreach (var order in response.Data.Orders)
-                {
-                    if (decimal.TryParse(order.OrigQty, out var quantity) &&
-                        decimal.TryParse(order.Price, out var price) &&
-                        decimal.TryParse(order.AvgPrice, out var avgPrice) &&
-                        decimal.TryParse(order.ExecutedQty, out var executedQty) &&
-                        decimal.TryParse(order.CumQuote, out var cumQuote) &&
-                        decimal.TryParse(order.Commission, out var commission) &&
-                        decimal.TryParse(order.Profit, out var profit))
-                    {
-                        // Parse optional fields
-                        decimal.TryParse(order.StopPrice, out var stopPrice);
-                        
-                        trades.Add(new FuturesTrade
-                        {
-                            Symbol = order.Symbol,
-                            OrderId = order.OrderId,
-                            Side = order.Side,
-                            PositionSide = order.PositionSide,
-                            OrderType = order.Type,
-                            Quantity = quantity,
-                            Price = price,
-                            AvgPrice = avgPrice,
-                            ExecutedQuantity = executedQty,
-                            CumulativeQuoteQuantity = cumQuote,
-                            StopPrice = stopPrice == 0 ? null : stopPrice,
-                            Status = order.Status,
-                            TimeInForce = order.TimeInForce,
-                            Time = order.Time,
-                            UpdateTime = order.UpdateTime,
-                            Fee = commission,
-                            FeeAsset = order.CommissionAsset,
-                            RealizedPnl = profit,
-                            Leverage = order.Leverage,
-                            ReduceOnly = order.ReduceOnly,
-                            WorkingType = order.WorkingType,
-                            ClientOrderId = order.ClientOrderId,
-                            Exchange = "BingX"
-                        });
-                    }
-                }
+                var trades = response.Data.Orders
+                    .Select(order => FuturesTrade.FromBingXFuturesOrder(order))
+                    .ToList();
                 
                 _logger.LogApiSuccess("BingX", endpoint, trades.Count);
                 return trades;

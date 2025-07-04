@@ -138,20 +138,9 @@ public class BybitApiClient : IDisposable
 
             if (response?.RetCode == 0 && response.Result?.List != null)
             {
-                var trades = response.Result.List.Select(o => new Trade
-                {
-                    Symbol = o.Symbol,
-                    OrderId = long.Parse(o.OrderId),
-                    Side = o.Side,
-                    OrderType = o.OrderType,
-                    Quantity = decimal.Parse(o.Qty),
-                    Price = decimal.Parse(o.Price),
-                    ExecutedQuantity = decimal.Parse(o.CumExecQty),
-                    Status = o.OrderStatus,
-                    TradeTime = long.Parse(o.CreatedTime),
-                    UpdateTime = long.Parse(o.UpdatedTime),
-                    Exchange = "Bybit"
-                }).ToList();
+                var trades = response.Result.List
+                    .Select(order => Trade.FromBybitOrder(order))
+                    .ToList();
 
                 _logger.LogApiSuccess("Bybit", endpoint, trades.Count);
                 return trades;
@@ -193,46 +182,9 @@ public class BybitApiClient : IDisposable
 
             if (response?.RetCode == 0 && response.Result?.List != null)
             {
-                var trades = new List<FuturesTrade>();
-                
-                foreach (var order in response.Result.List)
-                {
-                    if (decimal.TryParse(order.Qty, out var quantity) &&
-                        decimal.TryParse(order.Price, out var price) &&
-                        decimal.TryParse(order.CumExecQty, out var executedQty) &&
-                        long.TryParse(order.CreatedTime, out var createdTime) &&
-                        long.TryParse(order.UpdatedTime, out var updatedTime))
-                    {
-                        // Parse optional fields
-                        decimal.TryParse(order.AvgPrice, out var avgPrice);
-                        decimal.TryParse(order.CumExecValue, out var cumExecValue);
-                        decimal.TryParse(order.StopPrice, out var stopPrice);
-                        decimal.TryParse(order.CumExecFee, out var cumExecFee);
-                        var reduceOnly = order.ReduceOnly;  // Already a boolean
-                        
-                        trades.Add(new FuturesTrade
-                        {
-                            Symbol = order.Symbol,
-                            OrderId = long.TryParse(order.OrderId, out var orderId) ? orderId : 0,
-                            Side = order.Side.ToUpper(),
-                            OrderType = order.OrderType,
-                            Quantity = quantity,
-                            Price = price,
-                            AvgPrice = avgPrice > 0 ? avgPrice : price,
-                            ExecutedQuantity = executedQty,
-                            CumulativeQuoteQuantity = cumExecValue > 0 ? cumExecValue : executedQty * (avgPrice > 0 ? avgPrice : price),
-                            StopPrice = stopPrice > 0 ? stopPrice : null,
-                            Status = order.OrderStatus,
-                            TimeInForce = order.TimeInForce,
-                            Time = createdTime,
-                            UpdateTime = updatedTime,
-                            Fee = cumExecFee,
-                            FeeAsset = "USDT", // Bybit typically uses USDT for futures fees
-                            ReduceOnly = reduceOnly,
-                            Exchange = "Bybit"
-                        });
-                    }
-                }
+                var trades = response.Result.List
+                    .Select(order => FuturesTrade.FromBybitOrder(order))
+                    .ToList();
 
                 _logger.LogApiSuccess("Bybit", endpoint, trades.Count);
                 return trades;
