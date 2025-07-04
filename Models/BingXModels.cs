@@ -257,9 +257,6 @@ public class BingXFuturesTradeOrder
 
     [JsonPropertyName("commissionAsset")]
     public string CommissionAsset { get; set; } = string.Empty;
-
-    [JsonPropertyName("realizedPnl")]
-    public string RealizedPnl { get; set; } = "0";
 }
 
 // Supporting classes for takeProfit and stopLoss

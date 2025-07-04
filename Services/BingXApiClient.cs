@@ -224,7 +224,7 @@ public class BingXApiClient : IDisposable
                         decimal.TryParse(order.ExecutedQty, out var executedQty) &&
                         decimal.TryParse(order.CumQuote, out var cumQuote) &&
                         decimal.TryParse(order.Commission, out var commission) &&
-                        decimal.TryParse(order.RealizedPnl, out var realizedPnl))
+                        decimal.TryParse(order.Profit, out var profit))
                     {
                         // Parse optional fields
                         decimal.TryParse(order.StopPrice, out var stopPrice);
@@ -248,7 +248,7 @@ public class BingXApiClient : IDisposable
                             UpdateTime = order.UpdateTime,
                             Fee = commission,
                             FeeAsset = order.CommissionAsset,
-                            RealizedPnl = realizedPnl,
+                            RealizedPnl = profit,
                             Leverage = order.Leverage,
                             ReduceOnly = order.ReduceOnly,
                             WorkingType = order.WorkingType,
