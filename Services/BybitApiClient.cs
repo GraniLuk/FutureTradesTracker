@@ -166,6 +166,87 @@ public class BybitApiClient : IDisposable
         }
     }
 
+    public async Task<List<FuturesTrade>> GetFuturesTradeHistoryAsync(string? symbol = null, long? startTime = null, long? endTime = null, int limit = 50)
+    {
+        const string endpoint = "/v5/order/history";
+        _logger.LogApiCall("Bybit", endpoint);
+
+        try
+        {
+            var queryParams = new Dictionary<string, string>
+            {
+                { "category", "linear" },
+                { "limit", Math.Min(limit, 50).ToString() }
+            };
+
+            if (!string.IsNullOrEmpty(symbol))
+                queryParams["symbol"] = symbol;
+
+            if (startTime.HasValue)
+                queryParams["startTime"] = startTime.Value.ToString();
+
+            if (endTime.HasValue)
+                queryParams["endTime"] = endTime.Value.ToString();
+
+            var response = await MakeAuthenticatedRequestAsync<BybitApiResponse<BybitOrderHistoryData>>(endpoint, queryParams);
+
+            if (response?.RetCode == 0 && response.Result?.List != null)
+            {
+                var trades = new List<FuturesTrade>();
+                
+                foreach (var order in response.Result.List)
+                {
+                    if (decimal.TryParse(order.Qty, out var quantity) &&
+                        decimal.TryParse(order.Price, out var price) &&
+                        decimal.TryParse(order.CumExecQty, out var executedQty) &&
+                        long.TryParse(order.CreatedTime, out var createdTime) &&
+                        long.TryParse(order.UpdatedTime, out var updatedTime))
+                    {
+                        // Parse optional fields
+                        decimal.TryParse(order.AvgPrice, out var avgPrice);
+                        decimal.TryParse(order.CumExecValue, out var cumExecValue);
+                        decimal.TryParse(order.StopPrice, out var stopPrice);
+                        decimal.TryParse(order.CumExecFee, out var cumExecFee);
+                        bool.TryParse(order.ReduceOnly, out var reduceOnly);
+                        
+                        trades.Add(new FuturesTrade
+                        {
+                            Symbol = order.Symbol,
+                            OrderId = long.TryParse(order.OrderId, out var orderId) ? orderId : 0,
+                            Side = order.Side,
+                            OrderType = order.OrderType,
+                            Quantity = quantity,
+                            Price = price,
+                            AvgPrice = avgPrice > 0 ? avgPrice : price,
+                            ExecutedQuantity = executedQty,
+                            CumulativeQuoteQuantity = cumExecValue > 0 ? cumExecValue : executedQty * avgPrice,
+                            StopPrice = stopPrice > 0 ? stopPrice : null,
+                            Status = order.OrderStatus,
+                            TimeInForce = order.TimeInForce,
+                            Time = createdTime,
+                            UpdateTime = updatedTime,
+                            Fee = cumExecFee,
+                            FeeAsset = "USDT", // Bybit typically uses USDT for futures fees
+                            ReduceOnly = reduceOnly,
+                            Exchange = "Bybit"
+                        });
+                    }
+                }
+
+                _logger.LogApiSuccess("Bybit", endpoint, trades.Count);
+                return trades;
+            }
+
+            _logger.LogWarning("Bybit API returned unsuccessful response for {Endpoint}: {Message}", endpoint, response?.RetMsg);
+            return new List<FuturesTrade>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogApiError("Bybit", endpoint, ex);
+            return new List<FuturesTrade>();
+        }
+    }
+
     public async Task<List<Position>> GetPositionsAsync(string? symbol = null)
     {
         const string endpoint = "/v5/position/list";
@@ -312,6 +393,67 @@ public class BybitApiClient : IDisposable
         _httpClient?.Dispose();
         _rateLimitSemaphore?.Dispose();
     }
+
+    public static List<Position> CreatePositionsFromFuturesTrades(IEnumerable<FuturesTrade> futuresTrades)
+    {
+        var positions = new List<Position>();
+        
+        // Group trades by symbol
+        var tradesBySymbol = futuresTrades.GroupBy(t => t.Symbol);
+        
+        foreach (var symbolGroup in tradesBySymbol)
+        {
+            var symbol = symbolGroup.Key;
+            var trades = symbolGroup.OrderBy(t => t.Time).ToList();
+            
+            // Calculate position from trades
+            decimal totalQuantity = 0;
+            decimal totalValue = 0;
+            decimal totalFees = 0;
+            string? positionSide = null;
+            
+            foreach (var trade in trades)
+            {
+                var qty = trade.ExecutedQuantity;
+                var value = trade.CumulativeQuoteQuantity;
+                
+                if (trade.Side == "Buy")
+                {
+                    totalQuantity += qty;
+                    totalValue += value;
+                }
+                else // Sell
+                {
+                    totalQuantity -= qty;
+                    totalValue -= value;
+                }
+                
+                totalFees += trade.Fee;
+                positionSide = trade.Side;
+            }
+            
+            // Only add position if there's a non-zero quantity
+            if (Math.Abs(totalQuantity) > 0.00001m)
+            {
+                var avgPrice = totalValue / totalQuantity;
+                
+                positions.Add(new Position
+                {
+                    Symbol = symbol,
+                    PositionSide = totalQuantity > 0 ? "Long" : "Short",
+                    PositionSize = Math.Abs(totalQuantity),
+                    EntryPrice = Math.Abs(avgPrice),
+                    MarkPrice = Math.Abs(avgPrice), // Use entry price as mark price since we don't have real-time data
+                    UnrealizedPnl = 0, // Cannot calculate without current mark price
+                    Leverage = 1, // Default leverage
+                    UpdateTime = trades.Max(t => t.UpdateTime),
+                    Exchange = "Bybit"
+                });
+            }
+        }
+        
+        return positions;
+    }
 }
 
 // Bybit API response models
@@ -366,10 +508,21 @@ public class BybitOrder
     public string OrderType { get; set; } = string.Empty;
     public string Qty { get; set; } = "0";
     public string Price { get; set; } = "0";
+    public string AvgPrice { get; set; } = "0";
     public string CumExecQty { get; set; } = "0";
+    public string CumExecValue { get; set; } = "0";
     public string OrderStatus { get; set; } = string.Empty;
+    public string TimeInForce { get; set; } = string.Empty;
     public string CreatedTime { get; set; } = "0";
     public string UpdatedTime { get; set; } = "0";
+    public string StopPrice { get; set; } = "0";
+    public string TakeProfitPrice { get; set; } = "0";
+    public string StopLossPrice { get; set; } = "0";
+    public string PositionIdx { get; set; } = "0";
+    public string ReduceOnly { get; set; } = "false";
+    public string CloseOnTrigger { get; set; } = "false";
+    public string CumExecFee { get; set; } = "0";
+    public string RejectReason { get; set; } = string.Empty;
 }
 
 public class BybitPositionData
