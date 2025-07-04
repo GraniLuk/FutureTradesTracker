@@ -34,27 +34,29 @@ public class BybitApiClient : IDisposable
 
     public async Task<List<Balance>> GetSpotBalancesAsync()
     {
-        const string endpoint = "/v5/asset/transfer/query-account-coin-balance";
+        const string endpoint = "/v5/asset/transfer/query-account-coins-balance";
         _logger.LogApiCall("Bybit", endpoint);
 
         try
         {
             var queryParams = new Dictionary<string, string>
             {
-                { "accountType", "SPOT" }
+                { "accountType", "FUND" }
             };
 
             var response = await MakeAuthenticatedRequestAsync<BybitApiResponse<BybitBalanceData>>(endpoint, queryParams);
             
             if (response?.RetCode == 0 && response.Result?.Balance != null)
             {
-                var balances = response.Result.Balance.Select(b => new Balance
-                {
-                    Asset = b.Coin,
-                    Available = decimal.Parse(b.WalletBalance),
-                    Locked = decimal.Parse(b.Locked),
-                    Exchange = "Bybit"
-                }).ToList();
+                var balances = response.Result.Balance
+                    .Where(b => decimal.Parse(b.WalletBalance) > 0 || decimal.Parse(b.Locked) > 0) // Filter out zero balances
+                    .Select(b => new Balance
+                    {
+                        Asset = b.Coin,
+                        Available = decimal.Parse(b.WalletBalance),
+                        Locked = decimal.Parse(b.Locked),
+                        Exchange = "Bybit"
+                    }).ToList();
                 
                 _logger.LogApiSuccess("Bybit", endpoint, balances.Count);
                 return balances;
@@ -72,38 +74,28 @@ public class BybitApiClient : IDisposable
 
     public async Task<List<FuturesBalance>> GetFuturesBalancesAsync()
     {
-        const string endpoint = "/v5/account/wallet-balance";
+        const string endpoint = "/v5/asset/transfer/query-account-coins-balance";
         _logger.LogApiCall("Bybit", endpoint);
 
         try
         {
             var queryParams = new Dictionary<string, string>
             {
-                { "accountType", "UNIFIED" }
+                { "accountType", "UNIFIED" },
+                { "coin", "USDT" }
             };
 
-            var response = await MakeAuthenticatedRequestAsync<BybitApiResponse<BybitWalletData>>(endpoint, queryParams);
+            var response = await MakeAuthenticatedRequestAsync<BybitApiResponse<BybitBalanceData>>(endpoint, queryParams);
             
-            if (response?.RetCode == 0 && response.Result?.List != null)
+            if (response?.RetCode == 0 && response.Result?.Balance != null)
             {
-                var balances = new List<FuturesBalance>();
-                
-                foreach (var account in response.Result.List)
+                var balances = response.Result.Balance.Select(b => new FuturesBalance
                 {
-                    if (account.Coin != null)
-                    {
-                        foreach (var coin in account.Coin)
-                        {
-                            balances.Add(new FuturesBalance
-                            {
-                                Asset = coin.CoinName,
-                                Balance = decimal.Parse(coin.WalletBalance),
-                                AvailableBalance = decimal.Parse(coin.AvailableToWithdraw),
-                                Exchange = "Bybit"
-                            });
-                        }
-                    }
-                }
+                    Asset = b.Coin,
+                    Balance = decimal.Parse(b.WalletBalance),
+                    AvailableBalance = decimal.Parse(b.WalletBalance) - decimal.Parse(b.Locked),
+                    Exchange = "Bybit"
+                }).ToList();
                 
                 _logger.LogApiSuccess("Bybit", endpoint, balances.Count);
                 return balances;
