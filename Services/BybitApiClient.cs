@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using CryptoPositionAnalysis.Models;
 using CryptoPositionAnalysis.Services;
@@ -207,19 +208,19 @@ public class BybitApiClient : IDisposable
                         decimal.TryParse(order.CumExecValue, out var cumExecValue);
                         decimal.TryParse(order.StopPrice, out var stopPrice);
                         decimal.TryParse(order.CumExecFee, out var cumExecFee);
-                        bool.TryParse(order.ReduceOnly, out var reduceOnly);
+                        var reduceOnly = order.ReduceOnly;  // Already a boolean
                         
                         trades.Add(new FuturesTrade
                         {
                             Symbol = order.Symbol,
                             OrderId = long.TryParse(order.OrderId, out var orderId) ? orderId : 0,
-                            Side = order.Side,
+                            Side = order.Side.ToUpper(),
                             OrderType = order.OrderType,
                             Quantity = quantity,
                             Price = price,
                             AvgPrice = avgPrice > 0 ? avgPrice : price,
                             ExecutedQuantity = executedQty,
-                            CumulativeQuoteQuantity = cumExecValue > 0 ? cumExecValue : executedQty * avgPrice,
+                            CumulativeQuoteQuantity = cumExecValue > 0 ? cumExecValue : executedQty * (avgPrice > 0 ? avgPrice : price),
                             StopPrice = stopPrice > 0 ? stopPrice : null,
                             Status = order.OrderStatus,
                             TimeInForce = order.TimeInForce,
@@ -502,27 +503,92 @@ public class BybitOrderHistoryData
 
 public class BybitOrder
 {
+    [JsonPropertyName("orderId")]
     public string OrderId { get; set; } = string.Empty;
+    
+    [JsonPropertyName("symbol")]
     public string Symbol { get; set; } = string.Empty;
+    
+    [JsonPropertyName("side")]
     public string Side { get; set; } = string.Empty;
+    
+    [JsonPropertyName("orderType")]
     public string OrderType { get; set; } = string.Empty;
+    
+    [JsonPropertyName("qty")]
     public string Qty { get; set; } = "0";
+    
+    [JsonPropertyName("price")]
     public string Price { get; set; } = "0";
+    
+    [JsonPropertyName("avgPrice")]
     public string AvgPrice { get; set; } = "0";
+    
+    [JsonPropertyName("cumExecQty")]
     public string CumExecQty { get; set; } = "0";
+    
+    [JsonPropertyName("cumExecValue")]
     public string CumExecValue { get; set; } = "0";
+    
+    [JsonPropertyName("orderStatus")]
     public string OrderStatus { get; set; } = string.Empty;
+    
+    [JsonPropertyName("timeInForce")]
     public string TimeInForce { get; set; } = string.Empty;
+    
+    [JsonPropertyName("createdTime")]
     public string CreatedTime { get; set; } = "0";
+    
+    [JsonPropertyName("updatedTime")]
     public string UpdatedTime { get; set; } = "0";
+    
+    [JsonPropertyName("stopPrice")]
     public string StopPrice { get; set; } = "0";
+    
+    [JsonPropertyName("takeProfitPrice")]
     public string TakeProfitPrice { get; set; } = "0";
+    
+    [JsonPropertyName("stopLossPrice")]
     public string StopLossPrice { get; set; } = "0";
-    public string PositionIdx { get; set; } = "0";
-    public string ReduceOnly { get; set; } = "false";
-    public string CloseOnTrigger { get; set; } = "false";
+    
+    [JsonPropertyName("positionIdx")]
+    public int PositionIdx { get; set; } = 0;
+    
+    [JsonPropertyName("reduceOnly")]
+    public bool ReduceOnly { get; set; } = false;
+    
+    [JsonPropertyName("closeOnTrigger")]
+    public bool CloseOnTrigger { get; set; } = false;
+    
+    [JsonPropertyName("cumExecFee")]
     public string CumExecFee { get; set; } = "0";
+    
+    [JsonPropertyName("rejectReason")]
     public string RejectReason { get; set; } = string.Empty;
+    
+    [JsonPropertyName("triggerPrice")]
+    public string TriggerPrice { get; set; } = "0";
+    
+    [JsonPropertyName("takeProfit")]
+    public string TakeProfit { get; set; } = "0";
+    
+    [JsonPropertyName("stopLoss")]
+    public string StopLoss { get; set; } = "0";
+    
+    [JsonPropertyName("triggerBy")]
+    public string TriggerBy { get; set; } = string.Empty;
+    
+    [JsonPropertyName("tpTriggerBy")]
+    public string TpTriggerBy { get; set; } = string.Empty;
+    
+    [JsonPropertyName("slTriggerBy")]
+    public string SlTriggerBy { get; set; } = string.Empty;
+    
+    [JsonPropertyName("triggerDirection")]
+    public int TriggerDirection { get; set; } = 0;
+    
+    [JsonPropertyName("smpGroup")]
+    public int SmpGroup { get; set; } = 0;
 }
 
 public class BybitPositionData
