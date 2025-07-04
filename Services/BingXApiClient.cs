@@ -272,63 +272,6 @@ public class BingXApiClient : IDisposable
         }
     }
 
-    public async Task<List<Position>> GetPositionsAsync(string? symbol = null)
-    {
-        const string endpoint = "/openApi/swap/v2/user/positions";
-        _logger.LogApiCall("BingX", endpoint);
-
-        try
-        {
-            var queryParams = new List<string>();
-            
-            if (!string.IsNullOrEmpty(symbol))
-                queryParams.Add($"symbol={symbol}");
-
-            var response = await MakeAuthenticatedRequestAsync<BingXPositionsResponse>(endpoint, queryParams);
-            
-            if (response?.Code == 0 && response.Data != null)
-            {
-                var positions = new List<Position>();
-                
-                foreach (var pos in response.Data)
-                {
-                    if (decimal.TryParse(pos.PositionAmt, out var positionSize) &&
-                        Math.Abs(positionSize) > 0 && // Only include positions with size > 0
-                        decimal.TryParse(pos.AvgPrice, out var entryPrice) &&
-                        decimal.TryParse(pos.MarkPrice, out var markPrice) &&
-                        decimal.TryParse(pos.UnrealizedProfit, out var unrealizedPnl) &&
-                        decimal.TryParse(pos.Margin, out var isolatedMargin))
-                    {
-                        positions.Add(new Position
-                        {
-                            Symbol = pos.Symbol,
-                            PositionSide = pos.PositionSide,
-                            PositionSize = positionSize,
-                            EntryPrice = entryPrice,
-                            MarkPrice = markPrice,
-                            UnrealizedPnl = unrealizedPnl,
-                            Leverage = pos.Leverage,
-                            IsolatedMargin = isolatedMargin,
-                            UpdateTime = pos.UpdateTime,
-                            Exchange = "BingX"
-                        });
-                    }
-                }
-                
-                _logger.LogApiSuccess("BingX", endpoint, positions.Count);
-                return positions;
-            }
-
-            _logger.LogWarning("BingX API returned unsuccessful response for {Endpoint}: {Message}", endpoint, response?.Msg);
-            return new List<Position>();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogApiError("BingX", endpoint, ex);
-            return new List<Position>();
-        }
-    }
-
     private async Task<T?> MakeAuthenticatedRequestAsync<T>(string endpoint, List<string>? queryParams = null)
     {
         await ApplyRateLimitingAsync();
@@ -394,6 +337,44 @@ public class BingXApiClient : IDisposable
         }
 
         return default;
+    }
+
+      internal static List<Position> CreatePositionsFromFuturesTrades(IEnumerable<FuturesTrade> futuresTrades)
+    {
+        var positions = new List<Position>();
+        
+        // Filter trades by Status == "Open" as requested
+        // Note: In BingX, trades with Status "Open" represent current open positions
+        var openTrades = futuresTrades.Where(t => 
+            !string.IsNullOrEmpty(t.Status) && 
+            t.Status.Equals("Open", StringComparison.OrdinalIgnoreCase));
+        
+        foreach (var trade in openTrades)
+        {
+            // For open trades, the executed quantity represents the position size
+            var positionSize = trade.Side.Equals("BUY", StringComparison.OrdinalIgnoreCase) 
+                ? trade.ExecutedQuantity 
+                : -trade.ExecutedQuantity;
+            
+            // Skip if position size is effectively zero
+            if (Math.Abs(positionSize) < 0.000001m) continue;
+
+            positions.Add(new Position
+            {
+                Symbol = trade.Symbol,
+                PositionSide = trade.PositionSide ?? "BOTH",
+                PositionSize = positionSize,
+                EntryPrice = trade.AvgPrice,
+                MarkPrice = trade.AvgPrice, // We don't have real-time mark price, use avg price
+                UnrealizedPnl = trade.RealizedPnl, // Use realized PnL as approximation
+                Leverage = decimal.TryParse(trade.Leverage, out var leverage) ? leverage : 1m,
+                IsolatedMargin = 0, // Not available from trade data
+                UpdateTime = trade.UpdateTime,
+                Exchange = trade.Exchange
+            });
+        }
+
+        return positions;
     }
 
     private async Task ApplyRateLimitingAsync()

@@ -174,8 +174,9 @@ class Program
                 }
             }
 
-            // Get current positions
-            var bingxPositions = await client.GetPositionsAsync();
+            // Create positions from open futures trades
+            var bingxPositions = BingXApiClient.CreatePositionsFromFuturesTrades(futuresTrades.Where(t => t.Exchange == "BingX"));
+            logger.LogInformation("Created {PositionCount} positions from BingX futures trades", bingxPositions.Count);
             positions.AddRange(bingxPositions);
         }
         catch (Exception ex)
