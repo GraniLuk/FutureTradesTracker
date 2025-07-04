@@ -45,7 +45,7 @@ public class BybitApiClient : IDisposable
             };
 
             var response = await MakeAuthenticatedRequestAsync<BybitApiResponse<BybitBalanceData>>(endpoint, queryParams);
-            
+
             if (response?.RetCode == 0 && response.Result?.Balance != null)
             {
                 var balances = response.Result.Balance
@@ -57,7 +57,7 @@ public class BybitApiClient : IDisposable
                         Locked = decimal.Parse(b.Locked),
                         Exchange = "Bybit"
                     }).ToList();
-                
+
                 _logger.LogApiSuccess("Bybit", endpoint, balances.Count);
                 return balances;
             }
@@ -86,7 +86,7 @@ public class BybitApiClient : IDisposable
             };
 
             var response = await MakeAuthenticatedRequestAsync<BybitApiResponse<BybitBalanceData>>(endpoint, queryParams);
-            
+
             if (response?.RetCode == 0 && response.Result?.Balance != null)
             {
                 var balances = response.Result.Balance.Select(b => new FuturesBalance
@@ -96,7 +96,7 @@ public class BybitApiClient : IDisposable
                     AvailableBalance = decimal.Parse(b.WalletBalance) - decimal.Parse(b.Locked),
                     Exchange = "Bybit"
                 }).ToList();
-                
+
                 _logger.LogApiSuccess("Bybit", endpoint, balances.Count);
                 return balances;
             }
@@ -123,18 +123,18 @@ public class BybitApiClient : IDisposable
                 { "category", "spot" },
                 { "limit", Math.Min(limit, 50).ToString() }
             };
-            
+
             if (!string.IsNullOrEmpty(symbol))
                 queryParams["symbol"] = symbol;
-            
+
             if (startTime.HasValue)
                 queryParams["startTime"] = startTime.Value.ToString();
-            
+
             if (endTime.HasValue)
                 queryParams["endTime"] = endTime.Value.ToString();
 
             var response = await MakeAuthenticatedRequestAsync<BybitApiResponse<BybitOrderHistoryData>>(endpoint, queryParams);
-            
+
             if (response?.RetCode == 0 && response.Result?.List != null)
             {
                 var trades = response.Result.List.Select(o => new Trade
@@ -151,7 +151,7 @@ public class BybitApiClient : IDisposable
                     UpdateTime = long.Parse(o.UpdatedTime),
                     Exchange = "Bybit"
                 }).ToList();
-                
+
                 _logger.LogApiSuccess("Bybit", endpoint, trades.Count);
                 return trades;
             }
@@ -175,14 +175,15 @@ public class BybitApiClient : IDisposable
         {
             var queryParams = new Dictionary<string, string>
             {
-                { "category", "linear" }
+                { "category", "linear" },
+                {"settleCoin",  "USDT" }
             };
-            
+
             if (!string.IsNullOrEmpty(symbol))
                 queryParams["symbol"] = symbol;
 
             var response = await MakeAuthenticatedRequestAsync<BybitApiResponse<BybitPositionData>>(endpoint, queryParams);
-            
+
             if (response?.RetCode == 0 && response.Result?.List != null)
             {
                 var positions = response.Result.List.Where(p => decimal.Parse(p.Size) != 0).Select(p => new Position
@@ -197,7 +198,7 @@ public class BybitApiClient : IDisposable
                     UpdateTime = long.Parse(p.UpdatedTime),
                     Exchange = "Bybit"
                 }).ToList();
-                
+
                 _logger.LogApiSuccess("Bybit", endpoint, positions.Count);
                 return positions;
             }
@@ -245,7 +246,7 @@ public class BybitApiClient : IDisposable
             try
             {
                 var response = await _httpClient.SendAsync(request);
-                
+
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync();
