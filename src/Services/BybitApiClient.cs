@@ -223,7 +223,7 @@ public class BybitApiClient : IDisposable
                 var positions = response.Result.List.Where(p => decimal.Parse(p.Size) != 0).Select(p => new Position
                 {
                     Symbol = p.Symbol,
-                    PositionSide = p.Side,
+                    PositionSide = ParsePositionSide(p.Side),
                     PositionSize = decimal.Parse(p.Size),
                     EntryPrice = decimal.Parse(p.AvgPrice),
                     MarkPrice = decimal.Parse(p.MarkPrice),
@@ -341,6 +341,16 @@ public class BybitApiClient : IDisposable
         }
     }
 
+    private static PositionSide ParsePositionSide(string positionSide)
+    {
+        return positionSide?.ToUpperInvariant() switch
+        {
+            "Buy" => PositionSide.Long,
+            "Sell" => PositionSide.Short,
+            _ => throw new ArgumentException($"Unknown position side: {positionSide}")
+        };
+    }
+
     public void Dispose()
     {
         _httpClient?.Dispose();
@@ -393,7 +403,7 @@ public class BybitApiClient : IDisposable
                 positions.Add(new Position
                 {
                     Symbol = symbol,
-                    PositionSide = totalQuantity > 0 ? "Long" : "Short",
+                    PositionSide = totalQuantity > 0 ? PositionSide.Long : PositionSide.Short,
                     PositionSize = Math.Abs(totalQuantity),
                     EntryPrice = Math.Abs(avgPrice),
                     MarkPrice = Math.Abs(avgPrice), // Use entry price as mark price since we don't have real-time data

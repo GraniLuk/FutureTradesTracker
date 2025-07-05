@@ -79,7 +79,7 @@ public class BingXApiClientTests
 
         var btcPosition = positions.FirstOrDefault(p => p.Symbol == "BTC-USDT");
         btcPosition.Should().NotBeNull();
-        btcPosition!.PositionSide.Should().Be("LONG");
+        btcPosition!.PositionSide.Should().Be(PositionSide.Long);
         btcPosition.PositionSize.Should().Be(0.5m);
         btcPosition.EntryPrice.Should().Be(50000.00m);
         btcPosition.MarkPrice.Should().Be(50500.00m);
@@ -91,7 +91,7 @@ public class BingXApiClientTests
 
         var ethPosition = positions.FirstOrDefault(p => p.Symbol == "ETH-USDT");
         ethPosition.Should().NotBeNull();
-        ethPosition!.PositionSide.Should().Be("SHORT");
+        ethPosition!.PositionSide.Should().Be(PositionSide.Short);
         ethPosition.PositionSize.Should().Be(-2.0m);
         ethPosition.EntryPrice.Should().Be(3000.00m);
         ethPosition.MarkPrice.Should().Be(2950.00m);
@@ -269,7 +269,7 @@ public class BingXApiClientTests
             positions.Add(new Position
             {
                 Symbol = order.Symbol,
-                PositionSide = order.PositionSide ?? "BOTH",
+                PositionSide = ParsePositionSideFromString(order.PositionSide ?? "BOTH"),
                 PositionSize = positionSize,
                 EntryPrice = decimal.TryParse(order.AvgPrice, out var avgPrice) ? avgPrice : 0m,
                 MarkPrice = decimal.TryParse(order.Price, out var markPrice) ? markPrice : 0m,
@@ -305,7 +305,7 @@ public class BingXApiClientTests
                 positions.Add(new Position
                 {
                     Symbol = bingxPosition.Symbol,
-                    PositionSide = bingxPosition.PositionSide,
+                    PositionSide = ParsePositionSideFromString(bingxPosition.PositionSide),
                     PositionSize = positionSize,
                     EntryPrice = decimal.TryParse(bingxPosition.AvgPrice, out var avgPrice) ? avgPrice : 0m,
                     MarkPrice = decimal.TryParse(bingxPosition.MarkPrice, out var markPrice) ? markPrice : 0m,
@@ -320,5 +320,16 @@ public class BingXApiClientTests
         }
         
         return positions;
+    }
+    
+    private static PositionSide ParsePositionSideFromString(string positionSide)
+    {
+        return positionSide?.ToUpperInvariant() switch
+        {
+            "LONG" => PositionSide.Long,
+            "SHORT" => PositionSide.Short,
+            "BOTH" => PositionSide.Long, // Default to Long for "BOTH" case
+            _ => PositionSide.Long // Default fallback
+        };
     }
 }

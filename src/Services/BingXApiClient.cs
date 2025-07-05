@@ -302,7 +302,7 @@ public class BingXApiClient : IDisposable
                         positions.Add(new Position
                         {
                             Symbol = bingxPosition.Symbol,
-                            PositionSide = bingxPosition.PositionSide,
+                            PositionSide = ParsePositionSide(bingxPosition.PositionSide),
                             PositionSize = positionSize,
                             EntryPrice = decimal.TryParse(bingxPosition.AvgPrice, out var avgPrice) ? avgPrice : 0m,
                             MarkPrice = decimal.TryParse(bingxPosition.MarkPrice, out var markPrice) ? markPrice : 0m,
@@ -351,6 +351,16 @@ public class BingXApiClient : IDisposable
         {
             _rateLimitSemaphore.Release();
         }
+    }
+
+    private static PositionSide ParsePositionSide(string positionSide)
+    {
+        return positionSide?.ToUpperInvariant() switch
+        {
+            "LONG" => PositionSide.Long,
+            "SHORT" => PositionSide.Short,
+            _ => throw new ArgumentException($"Unknown position side: {positionSide}")
+        };
     }
 
     public void Dispose()
