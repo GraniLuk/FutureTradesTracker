@@ -277,7 +277,7 @@ public class BingXApiClient : IDisposable
 
     public async Task<List<Position>> GetOpenPositionsAsync(string? symbol = null)
     {
-        const string endpoint = "/openApi/swap/v2/trade/openOrders";
+        const string endpoint = "/openApi/swap/v2/user/positions";
         _logger.LogApiCall("BingX", endpoint);
 
         try
@@ -287,45 +287,40 @@ public class BingXApiClient : IDisposable
             if (!string.IsNullOrEmpty(symbol))
                 queryParams.Add($"symbol={symbol}");
 
-            var response = await MakeAuthenticatedRequestAsync<BingXApiResponse<List<BingXFuturesTradeOrder>>>(endpoint, queryParams);
+            var response = await MakeAuthenticatedRequestAsync<BingXPositionsResponse>(endpoint, queryParams);
             
-            if (response?.IsSuccess == true && response.Data != null)
+            if (response?.Code == 0 && response.Data != null)
             {
                 var positions = new List<Position>();
                 
-                foreach (var order in response.Data)
+                foreach (var bingxPosition in response.Data)
                 {
-                    // Only process orders that represent actual positions (not pending orders)
-                    if (!IsActivePosition(order)) continue;
-
-                    // Calculate position size based on side
-                    var positionSize = order.Side.Equals("BUY", StringComparison.OrdinalIgnoreCase) 
-                        ? decimal.Parse(order.ExecutedQty) 
-                        : -decimal.Parse(order.ExecutedQty);
-
-                    // Skip if position size is effectively zero
-                    if (Math.Abs(positionSize) < 0.000001m) continue;
-
-                    positions.Add(new Position
+                    // Only include positions with non-zero amounts
+                    if (decimal.TryParse(bingxPosition.PositionAmt, out var positionSize) && 
+                        Math.Abs(positionSize) > 0.000001m)
                     {
-                        Symbol = order.Symbol,
-                        PositionSide = order.PositionSide ?? "BOTH",
-                        PositionSize = positionSize,
-                        EntryPrice = decimal.TryParse(order.AvgPrice, out var avgPrice) ? avgPrice : 0m,
-                        MarkPrice = decimal.TryParse(order.Price, out var markPrice) ? markPrice : 0m,
-                        UnrealizedPnl = decimal.TryParse(order.Profit, out var profit) ? profit : 0m,
-                        Leverage = decimal.TryParse(order.Leverage, out var leverage) ? leverage : 1m,
-                        IsolatedMargin = 0, // Not available from order data
-                        UpdateTime = order.UpdateTime,
-                        Exchange = "BingX"
-                    });
+                        positions.Add(new Position
+                        {
+                            Symbol = bingxPosition.Symbol,
+                            PositionSide = bingxPosition.PositionSide,
+                            PositionSize = positionSize,
+                            EntryPrice = decimal.TryParse(bingxPosition.AvgPrice, out var avgPrice) ? avgPrice : 0m,
+                            MarkPrice = decimal.TryParse(bingxPosition.MarkPrice, out var markPrice) ? markPrice : 0m,
+                            UnrealizedPnl = decimal.TryParse(bingxPosition.UnrealizedProfit, out var unrealizedPnl) ? unrealizedPnl : 0m,
+                            Leverage = bingxPosition.Leverage,
+                            IsolatedMargin = decimal.TryParse(bingxPosition.Margin, out var margin) ? margin : 0m,
+                            Isolated = bingxPosition.Isolated,
+                            UpdateTime = bingxPosition.UpdateTime,
+                            Exchange = "BingX"
+                        });
+                    }
                 }
                 
                 _logger.LogApiSuccess("BingX", endpoint, positions.Count);
                 return positions;
             }
 
-            _logger.LogWarning("BingX API returned unsuccessful response for {Endpoint}: {Message}", endpoint, response?.Message);
+            _logger.LogWarning("BingX API returned unsuccessful response for {Endpoint}: {Message}", endpoint, response?.Msg);
             return new List<Position>();
         }
         catch (Exception ex)
@@ -333,14 +328,6 @@ public class BingXApiClient : IDisposable
             _logger.LogApiError("BingX", endpoint, ex);
             return new List<Position>();
         }
-    }
-
-    private static bool IsActivePosition(BingXFuturesTradeOrder order)
-    {
-        // Consider orders that represent active positions
-        // This includes filled orders that have position quantities
-        return order.Status.Equals("FILLED", StringComparison.OrdinalIgnoreCase) &&
-               decimal.TryParse(order.ExecutedQty, out var qty) && qty > 0;
     }
 
     private async Task ApplyRateLimitingAsync()

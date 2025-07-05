@@ -39,55 +39,40 @@ public class BingXApiClientTests
     public void GetOpenPositionsAsync_WithValidResponse_ShouldReturnPositions()
     {
         // Arrange
-        var mockOpenOrders = new List<BingXFuturesTradeOrder>
+        var mockPositions = new List<BingXPosition>
         {
-            new BingXFuturesTradeOrder
+            new BingXPosition
             {
                 Symbol = "BTC-USDT",
-                OrderId = 123456789,
-                Side = "BUY",
+                PositionId = "123456789",
                 PositionSide = "LONG",
-                Type = "MARKET",
-                Status = "FILLED",
-                ExecutedQty = "0.5",
+                PositionAmt = "0.5",
                 AvgPrice = "50000.00",
-                Price = "50500.00",
-                Profit = "250.00",
-                Leverage = "10",
+                MarkPrice = "50500.00",
+                UnrealizedProfit = "250.00",
+                Leverage = 10,
+                Margin = "2500.00",
+                Isolated = false,
                 UpdateTime = 1641024000000L
             },
-            new BingXFuturesTradeOrder
+            new BingXPosition
             {
                 Symbol = "ETH-USDT",
-                OrderId = 123456790,
-                Side = "SELL",
+                PositionId = "123456790",
                 PositionSide = "SHORT",
-                Type = "LIMIT",
-                Status = "FILLED",
-                ExecutedQty = "2.0",
+                PositionAmt = "-2.0",
                 AvgPrice = "3000.00",
-                Price = "2950.00",
-                Profit = "-100.00",
-                Leverage = "5",
+                MarkPrice = "2950.00",
+                UnrealizedProfit = "-100.00",
+                Leverage = 5,
+                Margin = "1200.00",
+                Isolated = true,
                 UpdateTime = 1641024300000L
             }
         };
 
-        // Create a mock HTTP handler that returns the expected response
-        var mockResponse = new BingXApiResponse<List<BingXFuturesTradeOrder>>
-        {
-            Code = 0,
-            Message = "Success",
-            Data = mockOpenOrders,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-        };
-
-        // Note: Since we can't easily mock HttpClient without more complex setup,
-        // we'll test the static conversion logic separately
-        // This would require refactoring the client to accept an IHttpClientFactory or similar
-
-        // For now, let's test the position conversion logic directly
-        var positions = ConvertOrdersToPositions(mockOpenOrders);
+        // Test the position conversion logic
+        var positions = ConvertPositionsFromBingXPositions(mockPositions);
 
         // Assert
         positions.Should().HaveCount(2);
@@ -100,16 +85,20 @@ public class BingXApiClientTests
         btcPosition.MarkPrice.Should().Be(50500.00m);
         btcPosition.UnrealizedPnl.Should().Be(250.00m);
         btcPosition.Leverage.Should().Be(10m);
+        btcPosition.IsolatedMargin.Should().Be(2500.00m);
+        btcPosition.Isolated.Should().BeFalse();
         btcPosition.Exchange.Should().Be("BingX");
 
         var ethPosition = positions.FirstOrDefault(p => p.Symbol == "ETH-USDT");
         ethPosition.Should().NotBeNull();
         ethPosition!.PositionSide.Should().Be("SHORT");
-        ethPosition.PositionSize.Should().Be(-2.0m); // Negative for SELL side
+        ethPosition.PositionSize.Should().Be(-2.0m);
         ethPosition.EntryPrice.Should().Be(3000.00m);
         ethPosition.MarkPrice.Should().Be(2950.00m);
         ethPosition.UnrealizedPnl.Should().Be(-100.00m);
         ethPosition.Leverage.Should().Be(5m);
+        ethPosition.IsolatedMargin.Should().Be(1200.00m);
+        ethPosition.Isolated.Should().BeTrue();
         ethPosition.Exchange.Should().Be("BingX");
     }
 
@@ -301,5 +290,35 @@ public class BingXApiClientTests
         // This includes filled orders that have position quantities
         return order.Status.Equals("FILLED", StringComparison.OrdinalIgnoreCase) &&
                decimal.TryParse(order.ExecutedQty, out var qty) && qty > 0;
+    }
+
+    private List<Position> ConvertPositionsFromBingXPositions(List<BingXPosition> bingxPositions)
+    {
+        var positions = new List<Position>();
+        
+        foreach (var bingxPosition in bingxPositions)
+        {
+            // Only include positions with non-zero amounts
+            if (decimal.TryParse(bingxPosition.PositionAmt, out var positionSize) && 
+                Math.Abs(positionSize) > 0.000001m)
+            {
+                positions.Add(new Position
+                {
+                    Symbol = bingxPosition.Symbol,
+                    PositionSide = bingxPosition.PositionSide,
+                    PositionSize = positionSize,
+                    EntryPrice = decimal.TryParse(bingxPosition.AvgPrice, out var avgPrice) ? avgPrice : 0m,
+                    MarkPrice = decimal.TryParse(bingxPosition.MarkPrice, out var markPrice) ? markPrice : 0m,
+                    UnrealizedPnl = decimal.TryParse(bingxPosition.UnrealizedProfit, out var unrealizedPnl) ? unrealizedPnl : 0m,
+                    Leverage = bingxPosition.Leverage,
+                    IsolatedMargin = decimal.TryParse(bingxPosition.Margin, out var margin) ? margin : 0m,
+                    Isolated = bingxPosition.Isolated,
+                    UpdateTime = bingxPosition.UpdateTime,
+                    Exchange = "BingX"
+                });
+            }
+        }
+        
+        return positions;
     }
 }

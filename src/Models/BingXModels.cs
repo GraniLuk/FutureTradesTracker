@@ -383,3 +383,10 @@ public class BingXPosition
     [JsonPropertyName("updateTime")]
     public long UpdateTime { get; set; }
 }
+
+// BingX Open Orders response structure
+public class BingXOpenOrdersData
+{
+    [JsonPropertyName("orders")]
+    public List<BingXFuturesTradeOrder>? Orders { get; set; }
+}
