@@ -541,6 +541,9 @@ public class BybitOrder
     
     [JsonPropertyName("smpGroup")]
     public int SmpGroup { get; set; } = 0;
+    
+    [JsonPropertyName("stopOrderType")]
+    public string StopOrderType { get; set; } = string.Empty;
 }
 
 public class BybitPositionData
