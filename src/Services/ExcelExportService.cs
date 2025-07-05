@@ -289,6 +289,7 @@ public class ExcelExportService
             worksheet.Cells[row, 8].Value = position.Leverage;
             worksheet.Cells[row, 9].Value = position.IsolatedMargin;
             worksheet.Cells[row, 10].Value = position.LastUpdateTime;
+            worksheet.Cells[row, 10].Style.Numberformat.Format = "dd/mm/yyyy";
             row++;
         }
 
