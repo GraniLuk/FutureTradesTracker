@@ -345,8 +345,8 @@ public class BybitApiClient : IDisposable
     {
         return positionSide?.ToUpperInvariant() switch
         {
-            "Buy" => PositionSide.Long,
-            "Sell" => PositionSide.Short,
+            "BUY" => PositionSide.Long,
+            "SELL" => PositionSide.Short,
             _ => throw new ArgumentException($"Unknown position side: {positionSide}")
         };
     }
