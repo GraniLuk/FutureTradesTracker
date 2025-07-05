@@ -7,7 +7,7 @@
             "command": "dotnet",
             "args": [
                 "build",
-                "${workspaceFolder}/CryptoPositionAnalysis.csproj",
+                "${workspaceFolder}/src/CryptoPositionAnalysis.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -23,11 +23,11 @@
             "command": "dotnet",
             "args": [
                 "publish",
-                "${workspaceFolder}/CryptoPositionAnalysis.csproj",
+                "${workspaceFolder}/src/CryptoPositionAnalysis.csproj",
                 "--configuration",
                 "Release",
                 "--output",
-                "${workspaceFolder}/bin/Release/publish"
+                "${workspaceFolder}/src/bin/Release/publish"
             ],
             "group": "build",
             "presentation": {
@@ -43,7 +43,7 @@
                 "watch",
                 "run",
                 "--project",
-                "${workspaceFolder}/CryptoPositionAnalysis.csproj"
+                "${workspaceFolder}/src/CryptoPositionAnalysis.csproj"
             ],
             "group": "build",
             "isBackground": true,
@@ -59,12 +59,27 @@
             "args": [
                 "run",
                 "--project",
-                "${workspaceFolder}/CryptoPositionAnalysis.csproj"
+                "${workspaceFolder}/src/CryptoPositionAnalysis.csproj"
             ],
             "group": {
                 "kind": "build",
                 "isDefault": true
             },
+            "presentation": {
+                "reveal": "always",
+                "clear": true
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "test",
+            "type": "shell",
+            "command": "dotnet",
+            "args": [
+                "test",
+                "${workspaceFolder}/tests/CryptoPositionAnalysis.Tests.csproj"
+            ],
+            "group": "test",
             "presentation": {
                 "reveal": "always",
                 "clear": true
