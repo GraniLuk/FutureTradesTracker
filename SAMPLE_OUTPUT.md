@@ -1,12 +1,12 @@
 # Sample Application Output
 
-This document shows what to expect when running the Crypto Position Analysis application.
+This document shows what to expect when running the Future Trades Tracker application.
 
 ## Successful Run with Configured APIs
 
 ```
 info: FutureTradesTracker.Program[0]
-      === Crypto Position Analysis Started ===
+      === Future Trades Tracker Started ===
 info: FutureTradesTracker.Program[0]
       Timestamp: 07/02/2025 13:49:04
 info: FutureTradesTracker.Program[0]
@@ -75,14 +75,14 @@ info: FutureTradesTracker.Program[0]
 info: FutureTradesTracker.Program[0]
       Exchanges processed: BingX, Bybit
 info: FutureTradesTracker.Program[0]
-      === Crypto Position Analysis Completed ===
+      === Future Trades Tracker Completed ===
 ```
 
 ## Run Without API Credentials
 
 ```
 info: FutureTradesTracker.Program[0]
-      === Crypto Position Analysis Started ===
+      === Future Trades Tracker Started ===
 info: FutureTradesTracker.Program[0]
       Timestamp: 07/02/2025 13:49:04
 warn: FutureTradesTracker.Program[0]
@@ -92,7 +92,7 @@ warn: FutureTradesTracker.Program[0]
 warn: FutureTradesTracker.Program[0]
       No data retrieved from any configured exchanges. Please check your API credentials and network connectivity.
 info: FutureTradesTracker.Program[0]
-      === Crypto Position Analysis Completed ===
+      === Future Trades Tracker Completed ===
 ```
 
 ## Excel File Output Structure

@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Helper script to run integration tests for Crypto Position Analysis
+    Helper script to run integration tests for Future Trades Tracker
 
 .DESCRIPTION
     This script provides easy commands to run various types of integration tests
@@ -163,7 +163,7 @@ function Build-TestFilter {
 function Run-IntegrationTests {
     param([string]$TestType, [string]$Exchange, [bool]$VerboseOutput)
     
-    Write-Header "Running Integration Tests for Crypto Position Analysis"
+    Write-Header "Running Integration Tests for Future Trades Tracker"
     
     # Build test filter
     $filter = Build-TestFilter -TestType $TestType -Exchange $Exchange

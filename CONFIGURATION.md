@@ -1,4 +1,4 @@
-# Crypto Position Analysis - Configuration Guide
+# Future Trades Tracker - Configuration Guide
 
 ## 🔐 IMPORTANT: Never commit API secrets to Git!
 

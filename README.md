@@ -1,4 +1,4 @@
-# Crypto Position Analysis
+# Future Trades Tracker
 
 A comprehensive C# .NET console application that fetches cryptocurrency trading data from multiple exchanges (BingX and Bybit) and exports it to Excel files for portfolio analysis and tracking.
 

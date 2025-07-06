@@ -134,7 +134,7 @@ _NCrunch*
 *.xlsx
 
 # =========================
-# Crypto Position Analysis
+# Future Trades Tracker
 # =========================
 
 # Never commit API credentials

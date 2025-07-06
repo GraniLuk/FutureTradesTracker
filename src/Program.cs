@@ -22,7 +22,7 @@ class Program
 
         try
         {
-            logger.LogInformation("=== Crypto Position Analysis Started ===");
+            logger.LogInformation("=== Future Trades Tracker Started ===");
             logger.LogInformation("Timestamp: {Timestamp}", DateTime.UtcNow);
 
             // Load configuration
@@ -104,7 +104,7 @@ class Program
                 logger.LogWarning("No data retrieved from any configured exchanges. Please check your API credentials and network connectivity.");
             }
 
-            logger.LogInformation("=== Crypto Position Analysis Completed ===");
+            logger.LogInformation("=== Future Trades Tracker Completed ===");
         }
         catch (Exception ex)
         {
