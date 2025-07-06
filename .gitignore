@@ -132,3 +132,33 @@ $RECYCLE.BIN/
 
 _NCrunch*
 *.xlsx
+
+# =========================
+# Crypto Position Analysis
+# =========================
+
+# Never commit API credentials
+appsettings.Development.json
+appsettings.Production.json
+appsettings.local.json
+**/appsettings.*.json
+!**/appsettings.json
+
+# User secrets (already ignored by default .NET gitignore)
+secrets.json
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+
+# Test results and reports
+TestResults/
+ExcelReports/
+*.xlsx
+*.xls
+
+# REST test files with real credentials
+**/*.rest.local
+**/*.http.local
