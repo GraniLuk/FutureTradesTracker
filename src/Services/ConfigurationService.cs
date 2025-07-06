@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Configuration;
 
-namespace CryptoPositionAnalysis.Services;
+namespace FutureTradesTracker.Services;
 
 public class ConfigurationService
 {

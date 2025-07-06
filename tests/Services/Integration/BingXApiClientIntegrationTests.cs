@@ -1,11 +1,11 @@
 using NUnit.Framework;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
-using CryptoPositionAnalysis.Models;
-using CryptoPositionAnalysis.Services;
+using FutureTradesTracker.Models;
+using FutureTradesTracker.Services;
 using Microsoft.Extensions.Configuration;
 
-namespace CryptoPositionAnalysis.Tests.Services.Integration;
+namespace FutureTradesTracker.Tests.Services.Integration;
 
 /// <summary>
 /// Integration tests for BingX API endpoints using real API calls.

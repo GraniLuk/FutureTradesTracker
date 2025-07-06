@@ -5,10 +5,10 @@ using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using CryptoPositionAnalysis.Models;
-using CryptoPositionAnalysis.Services;
+using FutureTradesTracker.Models;
+using FutureTradesTracker.Services;
 
-namespace CryptoPositionAnalysis.Tests.Services;
+namespace FutureTradesTracker.Tests.Services;
 
 [TestFixture]
 public class BingXApiClientTests

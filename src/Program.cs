@@ -1,9 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
-using CryptoPositionAnalysis.Services;
-using CryptoPositionAnalysis.Utils;
-using CryptoPositionAnalysis.Models;
+using FutureTradesTracker.Services;
+using FutureTradesTracker.Utils;
+using FutureTradesTracker.Models;
 
-namespace CryptoPositionAnalysis;
+namespace FutureTradesTracker;
 
 class Program
 {

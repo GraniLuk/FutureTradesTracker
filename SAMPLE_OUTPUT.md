@@ -5,93 +5,93 @@ This document shows what to expect when running the Crypto Position Analysis app
 ## Successful Run with Configured APIs
 
 ```
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
       === Crypto Position Analysis Started ===
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
       Timestamp: 07/02/2025 13:49:04
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
       Processing BingX exchange data...
-info: CryptoPositionAnalysis.Services.BingXApiClient[0]
+info: FutureTradesTracker.Services.BingXApiClient[0]
       Making GET request to BingX API: /openApi/spot/v1/account/balance
-info: CryptoPositionAnalysis.Services.BingXApiClient[0]
+info: FutureTradesTracker.Services.BingXApiClient[0]
       Successfully retrieved data from BingX API: /openApi/spot/v1/account/balance, Items: 12
-info: CryptoPositionAnalysis.Services.BingXApiClient[0]
+info: FutureTradesTracker.Services.BingXApiClient[0]
       Making GET request to BingX API: /openApi/swap/v2/user/balance
-info: CryptoPositionAnalysis.Services.BingXApiClient[0]
+info: FutureTradesTracker.Services.BingXApiClient[0]
       Successfully retrieved data from BingX API: /openApi/swap/v2/user/balance, Items: 5
-info: CryptoPositionAnalysis.Services.BingXApiClient[0]
+info: FutureTradesTracker.Services.BingXApiClient[0]
       Making GET request to BingX API: /openApi/spot/v1/trade/historyOrders
-info: CryptoPositionAnalysis.Services.BingXApiClient[0]
+info: FutureTradesTracker.Services.BingXApiClient[0]
       Successfully retrieved data from BingX API: /openApi/spot/v1/trade/historyOrders, Items: 150
-info: CryptoPositionAnalysis.Services.BingXApiClient[0]
+info: FutureTradesTracker.Services.BingXApiClient[0]
       Making GET request to BingX API: /openApi/swap/v2/trade/allOrders
-info: CryptoPositionAnalysis.Services.BingXApiClient[0]
+info: FutureTradesTracker.Services.BingXApiClient[0]
       Successfully retrieved data from BingX API: /openApi/swap/v2/trade/allOrders, Items: 75
-info: CryptoPositionAnalysis.Services.BingXApiClient[0]
+info: FutureTradesTracker.Services.BingXApiClient[0]
       Making GET request to BingX API: /openApi/swap/v2/user/positions
-info: CryptoPositionAnalysis.Services.BingXApiClient[0]
+info: FutureTradesTracker.Services.BingXApiClient[0]
       Successfully retrieved data from BingX API: /openApi/swap/v2/user/positions, Items: 3
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
       Processing Bybit exchange data...
-info: CryptoPositionAnalysis.Services.BybitApiClient[0]
+info: FutureTradesTracker.Services.BybitApiClient[0]
       Making GET request to Bybit API: /v5/asset/transfer/query-account-coin-balance
-info: CryptoPositionAnalysis.Services.BybitApiClient[0]
+info: FutureTradesTracker.Services.BybitApiClient[0]
       Successfully retrieved data from Bybit API: /v5/asset/transfer/query-account-coin-balance, Items: 8
-info: CryptoPositionAnalysis.Services.BybitApiClient[0]
+info: FutureTradesTracker.Services.BybitApiClient[0]
       Making GET request to Bybit API: /v5/account/wallet-balance
-info: CryptoPositionAnalysis.Services.BybitApiClient[0]
+info: FutureTradesTracker.Services.BybitApiClient[0]
       Successfully retrieved data from Bybit API: /v5/account/wallet-balance, Items: 6
-info: CryptoPositionAnalysis.Services.BybitApiClient[0]
+info: FutureTradesTracker.Services.BybitApiClient[0]
       Making GET request to Bybit API: /v5/order/history
-info: CryptoPositionAnalysis.Services.BybitApiClient[0]
+info: FutureTradesTracker.Services.BybitApiClient[0]
       Successfully retrieved data from Bybit API: /v5/order/history, Items: 42
-info: CryptoPositionAnalysis.Services.BybitApiClient[0]
+info: FutureTradesTracker.Services.BybitApiClient[0]
       Making GET request to Bybit API: /v5/position/list
-info: CryptoPositionAnalysis.Services.BybitApiClient[0]
+info: FutureTradesTracker.Services.BybitApiClient[0]
       Successfully retrieved data from Bybit API: /v5/position/list, Items: 2
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
       Exporting data to Excel...
-info: CryptoPositionAnalysis.Services.ExcelExportService[0]
+info: FutureTradesTracker.Services.ExcelExportService[0]
       Excel file exported successfully: ./ExcelReports/CryptoPortfolio_2025-07-02_13-49-15.xlsx, Sheets: 6
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
       Excel export completed successfully!
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
       File saved: ./ExcelReports/CryptoPortfolio_2025-07-02_13-49-15.xlsx
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
 
 === PORTFOLIO SUMMARY ===
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
       Spot Balances: 20 assets
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
       Futures Balances: 11 assets
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
       Spot Trades (30 days): 192 orders
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
       Futures Trades (30 days): 75 orders
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
       Active Positions: 5 positions
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
       Total Unrealized PnL: 1,234.5678
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
       Exchanges processed: BingX, Bybit
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
       === Crypto Position Analysis Completed ===
 ```
 
 ## Run Without API Credentials
 
 ```
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
       === Crypto Position Analysis Started ===
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
       Timestamp: 07/02/2025 13:49:04
-warn: CryptoPositionAnalysis.Program[0]
+warn: FutureTradesTracker.Program[0]
       BingX API credentials not configured. Please update appsettings.json with your API credentials.
-warn: CryptoPositionAnalysis.Program[0]
+warn: FutureTradesTracker.Program[0]
       Bybit API credentials not configured. Please update appsettings.json with your API credentials.
-warn: CryptoPositionAnalysis.Program[0]
+warn: FutureTradesTracker.Program[0]
       No data retrieved from any configured exchanges. Please check your API credentials and network connectivity.
-info: CryptoPositionAnalysis.Program[0]
+info: FutureTradesTracker.Program[0]
       === Crypto Position Analysis Completed ===
 ```
 
@@ -137,21 +137,21 @@ The generated Excel file contains the following worksheets:
 
 ### API Rate Limiting
 ```
-warn: CryptoPositionAnalysis.Services.BingXApiClient[0]
+warn: FutureTradesTracker.Services.BingXApiClient[0]
       Rate limited by BingX API, waiting 5 seconds
 ```
 
 ### Network Issues
 ```
-warn: CryptoPositionAnalysis.Services.BingXApiClient[0]
+warn: FutureTradesTracker.Services.BingXApiClient[0]
       Retrying BingX API call to /openApi/spot/v1/account/balance, attempt 2/3
-error: CryptoPositionAnalysis.Services.BingXApiClient[0]
+error: FutureTradesTracker.Services.BingXApiClient[0]
        Error calling BingX API: /openApi/spot/v1/account/balance
        System.HttpRequestException: No such host is known.
 ```
 
 ### Invalid Credentials
 ```
-error: CryptoPositionAnalysis.Services.BingXApiClient[0]
+error: FutureTradesTracker.Services.BingXApiClient[0]
        BingX API request failed with status Unauthorized: {"code":100001,"msg":"Signature verification failed"}
 ```

@@ -27,7 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\src\CryptoPositionAnalysis.csproj" />
+    <ProjectReference Include="..\src\FutureTradesTracker.csproj" />
   </ItemGroup>
 
 </Project>

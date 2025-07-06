@@ -1,10 +1,10 @@
 using System.Text.Json;
 using NUnit.Framework;
 using FluentAssertions;
-using CryptoPositionAnalysis.Models;
-using CryptoPositionAnalysis.Services;
+using FutureTradesTracker.Models;
+using FutureTradesTracker.Services;
 
-namespace CryptoPositionAnalysis.Tests.Models;
+namespace FutureTradesTracker.Tests.Models;
 
 [TestFixture]
 public class BybitFuturesTradeTests

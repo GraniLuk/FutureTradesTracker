@@ -1,8 +1,8 @@
 using NUnit.Framework;
 using FluentAssertions;
-using CryptoPositionAnalysis.Models;
+using FutureTradesTracker.Models;
 
-namespace CryptoPositionAnalysis.Tests.Models;
+namespace FutureTradesTracker.Tests.Models;
 
 [TestFixture]
 public class TradeTests

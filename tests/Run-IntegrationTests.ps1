@@ -70,7 +70,7 @@ function Write-Section {
 function Setup-UserSecrets {
     Write-Header "Setting up User Secrets for API Credentials"
     
-    $projectPath = Join-Path $PSScriptRoot "CryptoPositionAnalysis.Tests.csproj"
+    $projectPath = Join-Path $PSScriptRoot "FutureTradesTracker.Tests.csproj"
     
     if (-not (Test-Path $projectPath)) {
         Write-Host "Error: Test project not found at $projectPath" -ForegroundColor "Red"

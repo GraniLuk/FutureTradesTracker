@@ -27,7 +27,7 @@ A comprehensive C# .NET console application that fetches cryptocurrency trading 
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd CryptoPositionAnalysis
+cd FutureTradesTracker
 ```
 
 2. Restore NuGet packages:
@@ -184,7 +184,7 @@ Create a scheduled task to run the application at regular intervals.
 ### Linux Cron
 ```bash
 # Run every hour
-0 * * * * /usr/bin/dotnet /path/to/CryptoPositionAnalysis.dll
+0 * * * * /usr/bin/dotnet /path/to/FutureTradesTracker.dll
 ```
 
 ### Docker (Optional)

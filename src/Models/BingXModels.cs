@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace CryptoPositionAnalysis.Models;
+namespace FutureTradesTracker.Models;
 
 // BingX API specific response models
 public class BingXApiResponse<T>

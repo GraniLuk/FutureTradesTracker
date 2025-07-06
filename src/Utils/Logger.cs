@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace CryptoPositionAnalysis.Utils;
+namespace FutureTradesTracker.Utils;
 
 public static class LoggerFactory
 {

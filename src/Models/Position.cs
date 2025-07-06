@@ -1,4 +1,4 @@
-namespace CryptoPositionAnalysis.Models;
+namespace FutureTradesTracker.Models;
 
 public class Position
 {

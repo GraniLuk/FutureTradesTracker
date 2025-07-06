@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace CryptoPositionAnalysis.Utils;
+namespace FutureTradesTracker.Utils;
 
 public static class SignatureGenerator
 {

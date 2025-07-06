@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
-using CryptoPositionAnalysis.Services;
+using FutureTradesTracker.Services;
 
-namespace CryptoPositionAnalysis.Models;
+namespace FutureTradesTracker.Models;
 
 public class Trade
 {

@@ -2,11 +2,11 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
-using CryptoPositionAnalysis.Models;
-using CryptoPositionAnalysis.Services;
-using CryptoPositionAnalysis.Utils;
+using FutureTradesTracker.Models;
+using FutureTradesTracker.Services;
+using FutureTradesTracker.Utils;
 
-namespace CryptoPositionAnalysis.Services;
+namespace FutureTradesTracker.Services;
 
 public class BybitApiClient : IDisposable
 {
@@ -30,7 +30,7 @@ public class BybitApiClient : IDisposable
             Timeout = TimeSpan.FromSeconds(30)
         };
 
-        _httpClient.DefaultRequestHeaders.Add("User-Agent", "CryptoPositionAnalysis/1.0");
+        _httpClient.DefaultRequestHeaders.Add("User-Agent", "FutureTradesTracker/1.0");
     }
 
     public async Task<List<Balance>> GetSpotBalancesAsync()

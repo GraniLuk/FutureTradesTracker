@@ -1,11 +1,11 @@
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using Microsoft.Extensions.Logging;
-using CryptoPositionAnalysis.Models;
-using CryptoPositionAnalysis.Utils;
+using FutureTradesTracker.Models;
+using FutureTradesTracker.Utils;
 using System.Drawing;
 
-namespace CryptoPositionAnalysis.Services;
+namespace FutureTradesTracker.Services;
 
 public class ExcelExportService
 {
@@ -20,7 +20,7 @@ public class ExcelExportService
         // Set EPPlus license context for non-commercial use
         try
         {
-            new EPPlusLicense().SetNonCommercialPersonal("CryptoPositionAnalysis");
+            new EPPlusLicense().SetNonCommercialPersonal("FutureTradesTracker");
         }
         catch
         {

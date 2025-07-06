@@ -2,11 +2,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch CryptoPositionAnalysis",
+            "name": "Launch FutureTradesTracker",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/bin/Debug/net9.0/CryptoPositionAnalysis.dll",
+            "program": "${workspaceFolder}/src/bin/Debug/net9.0/FutureTradesTracker.dll",
             "args": [],
             "cwd": "${workspaceFolder}/src",
             "console": "integratedTerminal",
@@ -17,10 +17,10 @@
             }
         },
         {
-            "name": "Launch CryptoPositionAnalysis (Release)",
+            "name": "Launch FutureTradesTracker (Release)",
             "type": "coreclr",
             "request": "launch",
-            "program": "${workspaceFolder}/src/bin/Release/net9.0/CryptoPositionAnalysis.dll",
+            "program": "${workspaceFolder}/src/bin/Release/net9.0/FutureTradesTracker.dll",
             "args": [],
             "cwd": "${workspaceFolder}/src",
             "console": "integratedTerminal",

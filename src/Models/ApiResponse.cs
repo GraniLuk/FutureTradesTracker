@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace CryptoPositionAnalysis.Models;
+namespace FutureTradesTracker.Models;
 
 public class ApiResponse<T>
 {

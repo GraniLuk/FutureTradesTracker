@@ -1,11 +1,11 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using CryptoPositionAnalysis.Models;
-using CryptoPositionAnalysis.Services;
-using CryptoPositionAnalysis.Utils;
+using FutureTradesTracker.Models;
+using FutureTradesTracker.Services;
+using FutureTradesTracker.Utils;
 
-namespace CryptoPositionAnalysis.Services;
+namespace FutureTradesTracker.Services;
 
 public class BingXApiClient : IDisposable
 {
@@ -30,8 +30,8 @@ public class BingXApiClient : IDisposable
         };
 
         _httpClient.DefaultRequestHeaders.Add("X-BX-APIKEY", _settings.ApiKey);
-        _httpClient.DefaultRequestHeaders.Add("X-SOURCE-KEY", "CryptoPositionAnalysis");
-        _httpClient.DefaultRequestHeaders.Add("User-Agent", "CryptoPositionAnalysis/1.0");
+        _httpClient.DefaultRequestHeaders.Add("X-SOURCE-KEY", "FutureTradesTracker");
+        _httpClient.DefaultRequestHeaders.Add("User-Agent", "FutureTradesTracker/1.0");
     }
 
     public async Task<List<Balance>> GetSpotBalancesAsync()
