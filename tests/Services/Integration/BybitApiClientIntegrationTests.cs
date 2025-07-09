@@ -242,7 +242,7 @@ public class BybitApiClientIntegrationTests
         Console.WriteLine($"Retrieved {trades.Count} futures trades for {symbol} from Bybit");
         
         var firstTrade = trades.FirstOrDefault();
-        Assert.That(firstTrade.OrderId, Is.GreaterThan(0), "First trade should have a valid OrderId");
+        Assert.That(firstTrade.OrderId, Is.Not.Null, "First trade should have a valid OrderId");
         Assert.That(firstTrade.Symbol, Is.EqualTo(symbol), "First trade should match the requested symbol");
         Assert.That(firstTrade.Time, Is.GreaterThan(0), "First trade should have a valid timestamp");
         Assert.That(firstTrade.Exchange, Is.EqualTo("Bybit"), "First trade should be from Bybit exchange");
@@ -440,7 +440,7 @@ public class BybitApiClientIntegrationTests
             Console.WriteLine($"Exchange: {trade.Exchange}");
             
             // Validate required properties
-            trade.OrderId.Should().BeGreaterThan(0);
+            trade.OrderId.Should().NotBeNullOrEmpty();
             trade.Symbol.Should().NotBeNullOrEmpty();
             trade.Side.Should().BeOneOf("Buy", "Sell");
             trade.ExecutedQuantity.Should().BeGreaterThan(0);

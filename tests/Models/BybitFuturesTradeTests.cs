@@ -206,7 +206,7 @@ public class BybitFuturesTradeTests
 
         // Assert
         futuresTrade.Should().NotBeNull();
-        futuresTrade.OrderId.Should().Be(0); // Should default to 0 for invalid OrderId
+        futuresTrade.OrderId.Should().BeEmpty(); // Should default to 0 for invalid OrderId
         futuresTrade.Symbol.Should().Be("VIRTUALUSDT");
         futuresTrade.Side.Should().Be("BUY");
     }
