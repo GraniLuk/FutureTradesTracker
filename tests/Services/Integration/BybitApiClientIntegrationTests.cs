@@ -221,10 +221,16 @@ public class BybitApiClientIntegrationTests
     public async Task GetFuturesTradeHistoryAsync_WithSpecificSymbol_ShouldReturnSymbolTrades()
     {
         // Arrange
+        var today = DateTimeOffset.UtcNow;
+        var endTime = today.AddDays(-18);
+        var startTime = endTime.AddDays(-6); // Last 30 days
+        
+        var startTimeMs = startTime.ToUnixTimeMilliseconds();
+        var endTimeMs = endTime.ToUnixTimeMilliseconds();
         const string symbol = "VIRTUALUSDT";
 
         // Act
-        var trades = await _apiClient.GetFuturesTradeHistoryAsync(symbol);
+        var trades = await _apiClient.GetFuturesTradeHistoryAsync(symbol, startTimeMs, endTimeMs);
 
         // Assert
         trades.Should().NotBeNull();
