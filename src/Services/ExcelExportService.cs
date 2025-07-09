@@ -140,6 +140,7 @@ public class ExcelExportService
             worksheet.Cells[row, 5].Value = balance.Total;
             worksheet.Cells[row, 6].Value = balance.UsdValue;
             worksheet.Cells[row, 7].Value = balance.Timestamp;
+            worksheet.Cells[row, 7].Style.Numberformat.Format = "dd/mm/yyyy hh:mm:ss";
             row++;
         }
 
@@ -168,6 +169,7 @@ public class ExcelExportService
             worksheet.Cells[row, 5].Value = balance.CrossUnrealizedPnl;
             worksheet.Cells[row, 6].Value = balance.MaxWithdrawAmount;
             worksheet.Cells[row, 7].Value = balance.Timestamp;
+            worksheet.Cells[row, 7].Style.Numberformat.Format = "dd/mm/yyyy hh:mm:ss";
             row++;
         }
 
@@ -202,6 +204,7 @@ public class ExcelExportService
             worksheet.Cells[row, 11].Value = trade.Fee;
             worksheet.Cells[row, 12].Value = trade.FeeAsset;
             worksheet.Cells[row, 13].Value = trade.TradeDateTime;
+            worksheet.Cells[row, 13].Style.Numberformat.Format = "dd/mm/yyyy hh:mm:ss";
             row++;
         }
 
@@ -246,6 +249,7 @@ public class ExcelExportService
             worksheet.Cells[row, 17].Value = trade.ReduceOnly?.ToString() ?? ""; // New field
             worksheet.Cells[row, 18].Value = trade.WorkingType ?? ""; // New field
             worksheet.Cells[row, 19].Value = trade.TradeDateTime;
+            worksheet.Cells[row, 19].Style.Numberformat.Format = "dd/mm/yyyy hh:mm:ss";
             
             // Color-code PnL
             var pnlCell = worksheet.Cells[row, 16];
@@ -433,6 +437,7 @@ public class ExcelExportService
             var netPnl = trade.RealizedPnl - trade.Fee;
             
             worksheet.Cells[row, 1].Value = trade.TradeDateTime;
+            worksheet.Cells[row, 1].Style.Numberformat.Format = "dd/mm/yyyy hh:mm:ss";
             worksheet.Cells[row, 2].Value = trade.Symbol;
             worksheet.Cells[row, 3].Value = trade.Side;
             worksheet.Cells[row, 4].Value = trade.PositionSide ?? "";
