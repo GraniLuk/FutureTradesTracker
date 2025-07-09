@@ -14,8 +14,7 @@ public class FuturesTrade
     [JsonPropertyName("side")]
     public string Side { get; set; } = string.Empty;
 
-    [JsonPropertyName("positionSide")]
-    public string? PositionSide { get; set; }
+    public PositionSide PositionSide { get; set; }
 
     [JsonPropertyName("type")]
     public string OrderType { get; set; } = string.Empty;
@@ -86,6 +85,7 @@ public class FuturesTrade
         {
             Symbol = bybitOrder.Symbol,
             Side = bybitOrder.Side.ToUpper(),
+            PositionSide = ParsePositionSide(bybitOrder.PositionIdx.ToString()),
             OrderType = bybitOrder.OrderType,
             Status = bybitOrder.OrderStatus,
             TimeInForce = bybitOrder.TimeInForce,
@@ -141,7 +141,7 @@ public class FuturesTrade
             Symbol = bingxOrder.Symbol,
             OrderId = bingxOrder.OrderId,
             Side = bingxOrder.Side,
-            PositionSide = bingxOrder.PositionSide,
+            PositionSide = ParsePositionSide(bingxOrder.PositionSide),
             OrderType = bingxOrder.Type,
             Status = bingxOrder.Status,
             TimeInForce = bingxOrder.OrderType, // BingX uses different structure
@@ -182,5 +182,17 @@ public class FuturesTrade
             trade.StopPrice = stopPrice;
 
         return trade;
+    }
+
+    private static PositionSide ParsePositionSide(string positionSide)
+    {
+        return positionSide?.ToUpperInvariant() switch
+        {
+            "0" => PositionSide.Long,
+            "1" => PositionSide.Short,
+            "LONG" => PositionSide.Long,
+            "SHORT" => PositionSide.Short,
+            _ => throw new ArgumentException($"Unknown position side: {positionSide}")
+        };
     }
 }

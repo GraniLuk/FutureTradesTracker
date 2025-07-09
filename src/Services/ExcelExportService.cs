@@ -234,7 +234,7 @@ public class ExcelExportService
             worksheet.Cells[row, 2].Value = trade.Symbol;
             worksheet.Cells[row, 3].Value = trade.OrderId;
             worksheet.Cells[row, 4].Value = trade.Side;
-            worksheet.Cells[row, 5].Value = trade.PositionSide ?? ""; // New field
+            worksheet.Cells[row, 5].Value = trade.PositionSide.ToString().ToUpper(); // New field
             worksheet.Cells[row, 6].Value = trade.OrderType;
             worksheet.Cells[row, 7].Value = trade.Quantity;
             worksheet.Cells[row, 8].Value = trade.Price;
@@ -285,7 +285,7 @@ public class ExcelExportService
         {
             worksheet.Cells[row, 1].Value = position.Exchange;
             worksheet.Cells[row, 2].Value = position.Symbol;
-            worksheet.Cells[row, 3].Value = position.PositionSide;
+            worksheet.Cells[row, 3].Value = position.PositionSide.ToString().ToUpper();
             worksheet.Cells[row, 4].Value = position.PositionSize;
             worksheet.Cells[row, 5].Value = position.EntryPrice;
             worksheet.Cells[row, 6].Value = position.MarkPrice;
@@ -440,7 +440,7 @@ public class ExcelExportService
             worksheet.Cells[row, 1].Style.Numberformat.Format = "dd/mm/yyyy hh:mm:ss";
             worksheet.Cells[row, 2].Value = trade.Symbol;
             worksheet.Cells[row, 3].Value = trade.Side;
-            worksheet.Cells[row, 4].Value = trade.PositionSide ?? "";
+            worksheet.Cells[row, 4].Value = trade.PositionSide.ToString().ToUpper();
             worksheet.Cells[row, 5].Value = trade.OrderType;
             worksheet.Cells[row, 6].Value = trade.ExecutedQuantity;
             worksheet.Cells[row, 7].Value = trade.Price;
