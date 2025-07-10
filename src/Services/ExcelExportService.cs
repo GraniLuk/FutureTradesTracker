@@ -43,73 +43,87 @@ public class ExcelExportService
                 Directory.CreateDirectory(_settings.OutputDirectory);
             }
 
-            var timestamp = DateTime.UtcNow.ToString(_settings.DateFormat);
-            var fileName = $"{_settings.FileNamePrefix}{timestamp}.xlsx";
-            var filePath = Path.Combine(_settings.OutputDirectory, fileName);
-
-            using var package = new ExcelPackage();
+            var filePath = Path.Combine(_settings.OutputDirectory, _settings.FileName);
             
-            var sheetsCreated = 0;
+            ExcelPackage package;
+            bool isNewFile = !File.Exists(filePath);
 
-            // Create Spot Balances sheet
-            if (spotBalances.Count > 0)
+            if (isNewFile)
             {
-                CreateSpotBalancesSheet(package, spotBalances);
-                sheetsCreated++;
+                package = new ExcelPackage();
+                _logger.LogInformation("Creating new Excel file: {FilePath}", filePath);
+            }
+            else
+            {
+                package = new ExcelPackage(new FileInfo(filePath));
+                _logger.LogInformation("Updating existing Excel file: {FilePath}", filePath);
             }
 
-            // Create Futures Balances sheet
-            if (futuresBalances.Count > 0)
+            using (package)
             {
-                CreateFuturesBalancesSheet(package, futuresBalances);
-                sheetsCreated++;
-            }
+                var sheetsCreated = 0;
+                var timestamp = DateTime.UtcNow;
 
-            // Create Spot Trading History sheet
-            if (spotTrades.Count > 0)
-            {
-                CreateSpotTradesSheet(package, spotTrades);
-                sheetsCreated++;
-            }
+                // Update/Create Spot Balances sheet (always add new snapshot)
+                if (spotBalances.Count > 0)
+                {
+                    AppendSpotBalancesSnapshot(package, spotBalances, timestamp);
+                    sheetsCreated++;
+                }
 
-            // Create Futures Trading History sheet
-            if (futuresTrades.Count > 0)
-            {
-                CreateFuturesTradesSheet(package, futuresTrades);
-                sheetsCreated++;
-            }
+                // Update/Create Futures Balances sheet (always add new snapshot)
+                if (futuresBalances.Count > 0)
+                {
+                    AppendFuturesBalancesSnapshot(package, futuresBalances, timestamp);
+                    sheetsCreated++;
+                }
 
-            // Create Current Positions sheet
-            if (positions.Count > 0)
-            {
-                CreatePositionsSheet(package, positions);
-                sheetsCreated++;
-            }
+                // Update/Create Spot Trading History sheet (add only new trades)
+                if (spotTrades.Count > 0)
+                {
+                    AppendNewSpotTrades(package, spotTrades);
+                    sheetsCreated++;
+                }
 
-            // Create Performance Analysis sheets (if we have futures trades)
-            if (futuresTrades.Count > 0)
-            {
-                CreatePerformanceSummarySheet(package, futuresTrades);
+                // Update/Create Futures Trading History sheet (add only new trades)
+                if (futuresTrades.Count > 0)
+                {
+                    AppendNewFuturesTrades(package, futuresTrades);
+                    sheetsCreated++;
+                }
+
+                // Update/Create Current Positions sheet (always add new snapshot)
+                if (positions.Count > 0)
+                {
+                    AppendPositionsSnapshot(package, positions, timestamp);
+                    sheetsCreated++;
+                }
+
+                // Create/Update Performance Analysis sheets (if we have futures trades)
+                if (futuresTrades.Count > 0)
+                {
+                    CreateOrUpdatePerformanceSummarySheet(package, futuresTrades);
+                    sheetsCreated++;
+                    
+                    CreateOrUpdateTradePerformanceSheet(package, futuresTrades);
+                    sheetsCreated++;
+                    
+                    CreateOrUpdateMonthlyPerformanceSheet(package, futuresTrades);
+                    sheetsCreated++;
+                    
+                    CreateOrUpdateSymbolPerformanceSheet(package, futuresTrades);
+                    sheetsCreated++;
+                }
+
+                // Create/Update Summary sheet
+                CreateOrUpdateSummarySheet(package, spotBalances, futuresBalances, positions);
                 sheetsCreated++;
+
+                await package.SaveAsAsync(new FileInfo(filePath));
                 
-                CreateTradePerformanceSheet(package, futuresTrades);
-                sheetsCreated++;
-                
-                CreateMonthlyPerformanceSheet(package, futuresTrades);
-                sheetsCreated++;
-                
-                CreateSymbolPerformanceSheet(package, futuresTrades);
-                sheetsCreated++;
+                _logger.LogExcelExport(filePath, sheetsCreated);
+                return filePath;
             }
-
-            // Create Summary sheet
-            CreateSummarySheet(package, spotBalances, futuresBalances, positions);
-            sheetsCreated++;
-
-            await package.SaveAsAsync(new FileInfo(filePath));
-            
-            _logger.LogExcelExport(filePath, sheetsCreated);
-            return filePath;
         }
         catch (Exception ex)
         {
@@ -118,141 +132,200 @@ public class ExcelExportService
         }
     }
 
-    private void CreateSpotBalancesSheet(ExcelPackage package, List<Balance> balances)
+    private void AppendSpotBalancesSnapshot(ExcelPackage package, List<Balance> balances, DateTime timestamp)
     {
-        var worksheet = package.Workbook.Worksheets.Add("Spot Balances");
+        var worksheetName = "Spot Balances";
+        var worksheet = package.Workbook.Worksheets[worksheetName] ?? package.Workbook.Worksheets.Add(worksheetName);
         
-        // Headers
-        var headers = new[] { "Exchange", "Asset", "Available", "Locked", "Total", "USD Value", "Timestamp" };
-        for (int i = 0; i < headers.Length; i++)
+        // Headers (only if new worksheet)
+        if (worksheet.Dimension == null)
         {
-            worksheet.Cells[1, i + 1].Value = headers[i];
+            var headers = new[] { "Timestamp", "Exchange", "Asset", "Available", "Locked", "Total", "USD Value" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                worksheet.Cells[1, i + 1].Value = headers[i];
+            }
+            FormatHeaders(worksheet, headers.Length);
         }
 
-        // Data
-        var row = 2;
+        // Find the next available row
+        var nextRow = worksheet.Dimension?.End.Row + 1 ?? 2;
+
+        // Add new snapshot data
         foreach (var balance in balances.OrderBy(b => b.Exchange).ThenBy(b => b.Asset))
         {
-            worksheet.Cells[row, 1].Value = balance.Exchange;
-            worksheet.Cells[row, 2].Value = balance.Asset;
-            worksheet.Cells[row, 3].Value = balance.Available;
-            worksheet.Cells[row, 4].Value = balance.Locked;
-            worksheet.Cells[row, 5].Value = balance.Total;
-            worksheet.Cells[row, 6].Value = balance.UsdValue;
-            worksheet.Cells[row, 7].Value = balance.Timestamp;
-            worksheet.Cells[row, 7].Style.Numberformat.Format = "dd/mm/yyyy hh:mm:ss";
-            row++;
+            worksheet.Cells[nextRow, 1].Value = timestamp;
+            worksheet.Cells[nextRow, 1].Style.Numberformat.Format = "yyyy-mm-dd hh:mm:ss";
+            worksheet.Cells[nextRow, 2].Value = balance.Exchange;
+            worksheet.Cells[nextRow, 3].Value = balance.Asset;
+            worksheet.Cells[nextRow, 4].Value = balance.Available;
+            worksheet.Cells[nextRow, 5].Value = balance.Locked;
+            worksheet.Cells[nextRow, 6].Value = balance.Total;
+            worksheet.Cells[nextRow, 7].Value = balance.UsdValue;
+            nextRow++;
         }
 
-        FormatWorksheet(worksheet, headers.Length, row - 1);
+        // Auto-fit columns
+        worksheet.Cells.AutoFitColumns();
     }
 
-    private void CreateFuturesBalancesSheet(ExcelPackage package, List<FuturesBalance> balances)
+    private void AppendFuturesBalancesSnapshot(ExcelPackage package, List<FuturesBalance> balances, DateTime timestamp)
     {
-        var worksheet = package.Workbook.Worksheets.Add("Futures Balances");
+        var worksheetName = "Futures Balances";
+        var worksheet = package.Workbook.Worksheets[worksheetName] ?? package.Workbook.Worksheets.Add(worksheetName);
         
-        // Headers
-        var headers = new[] { "Exchange", "Asset", "Balance", "Available", "Cross PnL", "Max Withdraw", "Timestamp" };
-        for (int i = 0; i < headers.Length; i++)
+        // Headers (only if new worksheet)
+        if (worksheet.Dimension == null)
         {
-            worksheet.Cells[1, i + 1].Value = headers[i];
+            var headers = new[] { "Timestamp", "Exchange", "Asset", "Balance", "Available", "Cross PnL", "Max Withdraw" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                worksheet.Cells[1, i + 1].Value = headers[i];
+            }
+            FormatHeaders(worksheet, headers.Length);
         }
 
-        // Data
-        var row = 2;
+        // Find the next available row
+        var nextRow = worksheet.Dimension?.End.Row + 1 ?? 2;
+
+        // Add new snapshot data
         foreach (var balance in balances.OrderBy(b => b.Exchange).ThenBy(b => b.Asset))
         {
-            worksheet.Cells[row, 1].Value = balance.Exchange;
-            worksheet.Cells[row, 2].Value = balance.Asset;
-            worksheet.Cells[row, 3].Value = balance.Balance;
-            worksheet.Cells[row, 4].Value = balance.AvailableBalance;
-            worksheet.Cells[row, 5].Value = balance.CrossUnrealizedPnl;
-            worksheet.Cells[row, 6].Value = balance.MaxWithdrawAmount;
-            worksheet.Cells[row, 7].Value = balance.Timestamp;
-            worksheet.Cells[row, 7].Style.Numberformat.Format = "dd/mm/yyyy hh:mm:ss";
-            row++;
+            worksheet.Cells[nextRow, 1].Value = timestamp;
+            worksheet.Cells[nextRow, 1].Style.Numberformat.Format = "yyyy-mm-dd hh:mm:ss";
+            worksheet.Cells[nextRow, 2].Value = balance.Exchange;
+            worksheet.Cells[nextRow, 3].Value = balance.Asset;
+            worksheet.Cells[nextRow, 4].Value = balance.Balance;
+            worksheet.Cells[nextRow, 5].Value = balance.AvailableBalance;
+            worksheet.Cells[nextRow, 6].Value = balance.CrossUnrealizedPnl;
+            worksheet.Cells[nextRow, 7].Value = balance.MaxWithdrawAmount;
+            nextRow++;
         }
 
-        FormatWorksheet(worksheet, headers.Length, row - 1);
+        // Auto-fit columns
+        worksheet.Cells.AutoFitColumns();
     }
 
-    private void CreateSpotTradesSheet(ExcelPackage package, List<Trade> trades)
+    private void AppendNewSpotTrades(ExcelPackage package, List<Trade> trades)
     {
-        var worksheet = package.Workbook.Worksheets.Add("Spot Trading History");
+        var worksheetName = "Spot Trading History";
+        var worksheet = package.Workbook.Worksheets[worksheetName] ?? package.Workbook.Worksheets.Add(worksheetName);
         
-        // Headers
-        var headers = new[] { "Exchange", "Symbol", "Order ID", "Trade ID", "Side", "Type", "Quantity", "Price", "Executed Qty", "Status", "Fee", "Fee Asset", "Trade Time" };
-        for (int i = 0; i < headers.Length; i++)
+        // Headers (only if new worksheet)
+        if (worksheet.Dimension == null)
         {
-            worksheet.Cells[1, i + 1].Value = headers[i];
+            var headers = new[] { "Exchange", "Symbol", "Order ID", "Trade ID", "Side", "Type", "Quantity", "Price", "Executed Qty", "Status", "Fee", "Fee Asset", "Trade Time" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                worksheet.Cells[1, i + 1].Value = headers[i];
+            }
+            FormatHeaders(worksheet, headers.Length);
         }
 
-        // Data
-        var row = 2;
-        foreach (var trade in trades.OrderByDescending(t => t.TradeTime))
+        // Get existing trade IDs to avoid duplicates
+        var existingTradeIds = new HashSet<long>();
+        if (worksheet.Dimension != null)
         {
-            worksheet.Cells[row, 1].Value = trade.Exchange;
-            worksheet.Cells[row, 2].Value = trade.Symbol;
-            worksheet.Cells[row, 3].Value = trade.OrderId;
-            worksheet.Cells[row, 4].Value = trade.TradeId;
-            worksheet.Cells[row, 5].Value = trade.Side;
-            worksheet.Cells[row, 6].Value = trade.OrderType;
-            worksheet.Cells[row, 7].Value = trade.Quantity;
-            worksheet.Cells[row, 8].Value = trade.Price;
-            worksheet.Cells[row, 9].Value = trade.ExecutedQuantity;
-            worksheet.Cells[row, 10].Value = trade.Status;
-            worksheet.Cells[row, 11].Value = trade.Fee;
-            worksheet.Cells[row, 12].Value = trade.FeeAsset;
-            worksheet.Cells[row, 13].Value = trade.TradeDateTime;
-            worksheet.Cells[row, 13].Style.Numberformat.Format = "dd/mm/yyyy hh:mm:ss";
-            row++;
+            for (int row = 2; row <= worksheet.Dimension.End.Row; row++)
+            {
+                var tradeIdValue = worksheet.Cells[row, 4].Value?.ToString();
+                if (!string.IsNullOrEmpty(tradeIdValue) && long.TryParse(tradeIdValue, out var tradeId))
+                {
+                    existingTradeIds.Add(tradeId);
+                }
+            }
         }
 
-        FormatWorksheet(worksheet, headers.Length, row - 1);
+        // Find the next available row
+        var nextRow = worksheet.Dimension?.End.Row + 1 ?? 2;
+
+        // Add only new trades
+        foreach (var trade in trades.Where(t => !existingTradeIds.Contains(t.TradeId)).OrderByDescending(t => t.TradeTime))
+        {
+            worksheet.Cells[nextRow, 1].Value = trade.Exchange;
+            worksheet.Cells[nextRow, 2].Value = trade.Symbol;
+            worksheet.Cells[nextRow, 3].Value = trade.OrderId;
+            worksheet.Cells[nextRow, 4].Value = trade.TradeId;
+            worksheet.Cells[nextRow, 5].Value = trade.Side;
+            worksheet.Cells[nextRow, 6].Value = trade.OrderType;
+            worksheet.Cells[nextRow, 7].Value = trade.Quantity;
+            worksheet.Cells[nextRow, 8].Value = trade.Price;
+            worksheet.Cells[nextRow, 9].Value = trade.ExecutedQuantity;
+            worksheet.Cells[nextRow, 10].Value = trade.Status;
+            worksheet.Cells[nextRow, 11].Value = trade.Fee;
+            worksheet.Cells[nextRow, 12].Value = trade.FeeAsset;
+            worksheet.Cells[nextRow, 13].Value = trade.TradeDateTime;
+            worksheet.Cells[nextRow, 13].Style.Numberformat.Format = "yyyy-mm-dd hh:mm:ss";
+            nextRow++;
+        }
+
+        // Auto-fit columns
+        worksheet.Cells.AutoFitColumns();
     }
 
-    private void CreateFuturesTradesSheet(ExcelPackage package, List<FuturesTrade> trades)
+    private void AppendNewFuturesTrades(ExcelPackage package, List<FuturesTrade> trades)
     {
-        var worksheet = package.Workbook.Worksheets.Add("Futures Trading History");
+        var worksheetName = "Futures Trading History";
+        var worksheet = package.Workbook.Worksheets[worksheetName] ?? package.Workbook.Worksheets.Add(worksheetName);
         
-        // Headers - Enhanced with new fields from BingX API
-        var headers = new[] { 
-            "Exchange", "Symbol", "Order ID", "Side", "Position Side", "Type", "Quantity", 
-            "Price", "Avg Price", "Executed Qty", "Stop Price", "Status", "Leverage", 
-            "Fee", "Fee Asset", "Realized PnL", "Reduce Only", "Working Type", "Trade Time" 
-        };
-        for (int i = 0; i < headers.Length; i++)
+        // Headers (only if new worksheet)
+        if (worksheet.Dimension == null)
         {
-            worksheet.Cells[1, i + 1].Value = headers[i];
+            var headers = new[] { 
+                "Exchange", "Symbol", "Order ID", "Side", "Position Side", "Type", "Quantity", 
+                "Price", "Avg Price", "Executed Qty", "Stop Price", "Status", "Leverage", 
+                "Fee", "Fee Asset", "Realized PnL", "Reduce Only", "Working Type", "Trade Time" 
+            };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                worksheet.Cells[1, i + 1].Value = headers[i];
+            }
+            FormatHeaders(worksheet, headers.Length);
         }
 
-        // Data
-        var row = 2;
-        foreach (var trade in trades.OrderByDescending(t => t.Time))
+        // Get existing trade IDs to avoid duplicates
+        var existingTradeIds = new HashSet<string>();
+        if (worksheet.Dimension != null)
         {
-            worksheet.Cells[row, 1].Value = trade.Exchange;
-            worksheet.Cells[row, 2].Value = trade.Symbol;
-            worksheet.Cells[row, 3].Value = trade.OrderId;
-            worksheet.Cells[row, 4].Value = trade.Side;
-            worksheet.Cells[row, 5].Value = trade.PositionSide.ToString().ToUpper(); // New field
-            worksheet.Cells[row, 6].Value = trade.OrderType;
-            worksheet.Cells[row, 7].Value = trade.Quantity;
-            worksheet.Cells[row, 8].Value = trade.Price;
-            worksheet.Cells[row, 9].Value = trade.AvgPrice;
-            worksheet.Cells[row, 10].Value = trade.ExecutedQuantity;
-            worksheet.Cells[row, 11].Value = trade.StopPrice ?? 0; // New field
-            worksheet.Cells[row, 12].Value = trade.Status;
-            worksheet.Cells[row, 13].Value = trade.Leverage ?? ""; // New field
-            worksheet.Cells[row, 14].Value = trade.Fee;
-            worksheet.Cells[row, 15].Value = trade.FeeAsset;
-            worksheet.Cells[row, 16].Value = trade.RealizedPnl;
-            worksheet.Cells[row, 17].Value = trade.ReduceOnly?.ToString() ?? ""; // New field
-            worksheet.Cells[row, 18].Value = trade.WorkingType ?? ""; // New field
-            worksheet.Cells[row, 19].Value = trade.TradeDateTime;
-            worksheet.Cells[row, 19].Style.Numberformat.Format = "dd/mm/yyyy hh:mm:ss";
+            for (int row = 2; row <= worksheet.Dimension.End.Row; row++)
+            {
+                var tradeId = worksheet.Cells[row, 3].Value?.ToString(); // Order ID column
+                if (!string.IsNullOrEmpty(tradeId))
+                {
+                    existingTradeIds.Add(tradeId);
+                }
+            }
+        }
+
+        // Find the next available row
+        var nextRow = worksheet.Dimension?.End.Row + 1 ?? 2;
+
+        // Add only new trades
+        foreach (var trade in trades.Where(t => !existingTradeIds.Contains(t.OrderId)).OrderByDescending(t => t.Time))
+        {
+            worksheet.Cells[nextRow, 1].Value = trade.Exchange;
+            worksheet.Cells[nextRow, 2].Value = trade.Symbol;
+            worksheet.Cells[nextRow, 3].Value = trade.OrderId;
+            worksheet.Cells[nextRow, 4].Value = trade.Side;
+            worksheet.Cells[nextRow, 5].Value = trade.PositionSide.ToString().ToUpper();
+            worksheet.Cells[nextRow, 6].Value = trade.OrderType;
+            worksheet.Cells[nextRow, 7].Value = trade.Quantity;
+            worksheet.Cells[nextRow, 8].Value = trade.Price;
+            worksheet.Cells[nextRow, 9].Value = trade.AvgPrice;
+            worksheet.Cells[nextRow, 10].Value = trade.ExecutedQuantity;
+            worksheet.Cells[nextRow, 11].Value = trade.StopPrice ?? 0;
+            worksheet.Cells[nextRow, 12].Value = trade.Status;
+            worksheet.Cells[nextRow, 13].Value = trade.Leverage ?? "";
+            worksheet.Cells[nextRow, 14].Value = trade.Fee;
+            worksheet.Cells[nextRow, 15].Value = trade.FeeAsset;
+            worksheet.Cells[nextRow, 16].Value = trade.RealizedPnl;
+            worksheet.Cells[nextRow, 17].Value = trade.ReduceOnly?.ToString() ?? "";
+            worksheet.Cells[nextRow, 18].Value = trade.WorkingType ?? "";
+            worksheet.Cells[nextRow, 19].Value = trade.TradeDateTime;
+            worksheet.Cells[nextRow, 19].Style.Numberformat.Format = "yyyy-mm-dd hh:mm:ss";
             
             // Color-code PnL
-            var pnlCell = worksheet.Cells[row, 16];
+            var pnlCell = worksheet.Cells[nextRow, 16];
             if (trade.RealizedPnl > 0)
             {
                 pnlCell.Style.Font.Color.SetColor(Color.Green);
@@ -262,67 +335,77 @@ public class ExcelExportService
                 pnlCell.Style.Font.Color.SetColor(Color.Red);
             }
             
-            row++;
+            nextRow++;
         }
 
-        FormatWorksheet(worksheet, headers.Length, row - 1);
+        // Auto-fit columns
+        worksheet.Cells.AutoFitColumns();
     }
 
-    private void CreatePositionsSheet(ExcelPackage package, List<Position> positions)
+    private void AppendPositionsSnapshot(ExcelPackage package, List<Position> positions, DateTime timestamp)
     {
-        var worksheet = package.Workbook.Worksheets.Add("Current Positions");
+        var worksheetName = "Current Positions";
+        var worksheet = package.Workbook.Worksheets[worksheetName] ?? package.Workbook.Worksheets.Add(worksheetName);
         
-        // Headers
-        var headers = new[] { "Exchange", "Symbol", "Side", "Size", "Entry Price", "Mark Price", "Unrealized PnL", "Leverage", "Margin", "Last Update" };
-        for (int i = 0; i < headers.Length; i++)
+        // Headers (only if new worksheet)
+        if (worksheet.Dimension == null)
         {
-            worksheet.Cells[1, i + 1].Value = headers[i];
+            var headers = new[] { "Timestamp", "Exchange", "Symbol", "Side", "Size", "Entry Price", "Mark Price", "Unrealized PnL", "Leverage", "Margin" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                worksheet.Cells[1, i + 1].Value = headers[i];
+            }
+            FormatHeaders(worksheet, headers.Length);
         }
 
-        // Data
-        var row = 2;
+        // Find the next available row
+        var nextRow = worksheet.Dimension?.End.Row + 1 ?? 2;
+
+        // Add new snapshot data
         foreach (var position in positions.OrderBy(p => p.Exchange).ThenBy(p => p.Symbol))
         {
-            worksheet.Cells[row, 1].Value = position.Exchange;
-            worksheet.Cells[row, 2].Value = position.Symbol;
-            worksheet.Cells[row, 3].Value = position.PositionSide.ToString().ToUpper();
-            worksheet.Cells[row, 4].Value = position.PositionSize;
-            worksheet.Cells[row, 5].Value = position.EntryPrice;
-            worksheet.Cells[row, 6].Value = position.MarkPrice;
-            worksheet.Cells[row, 7].Value = position.UnrealizedPnl;
-            worksheet.Cells[row, 8].Value = position.Leverage;
-            worksheet.Cells[row, 9].Value = position.IsolatedMargin;
-            worksheet.Cells[row, 10].Value = position.LastUpdateTime;
-            worksheet.Cells[row, 10].Style.Numberformat.Format = "dd/mm/yyyy";
-            row++;
-        }
-
-        FormatWorksheet(worksheet, headers.Length, row - 1);
-
-        // Color-code PnL
-        if (row > 2)
-        {
-            for (int r = 2; r < row; r++)
+            worksheet.Cells[nextRow, 1].Value = timestamp;
+            worksheet.Cells[nextRow, 1].Style.Numberformat.Format = "yyyy-mm-dd hh:mm:ss";
+            worksheet.Cells[nextRow, 2].Value = position.Exchange;
+            worksheet.Cells[nextRow, 3].Value = position.Symbol;
+            worksheet.Cells[nextRow, 4].Value = position.PositionSide.ToString().ToUpper();
+            worksheet.Cells[nextRow, 5].Value = position.PositionSize;
+            worksheet.Cells[nextRow, 6].Value = position.EntryPrice;
+            worksheet.Cells[nextRow, 7].Value = position.MarkPrice;
+            worksheet.Cells[nextRow, 8].Value = position.UnrealizedPnl;
+            worksheet.Cells[nextRow, 9].Value = position.Leverage;
+            worksheet.Cells[nextRow, 10].Value = position.IsolatedMargin;
+            
+            // Color-code PnL
+            var pnlCell = worksheet.Cells[nextRow, 8];
+            if (position.UnrealizedPnl > 0)
             {
-                var pnlCell = worksheet.Cells[r, 7];
-                if (pnlCell.Value != null && decimal.TryParse(pnlCell.Value.ToString(), out var pnl))
-                {
-                    if (pnl > 0)
-                    {
-                        pnlCell.Style.Font.Color.SetColor(Color.Green);
-                    }
-                    else if (pnl < 0)
-                    {
-                        pnlCell.Style.Font.Color.SetColor(Color.Red);
-                    }
-                }
+                pnlCell.Style.Font.Color.SetColor(Color.Green);
             }
+            else if (position.UnrealizedPnl < 0)
+            {
+                pnlCell.Style.Font.Color.SetColor(Color.Red);
+            }
+            
+            nextRow++;
         }
+
+        // Auto-fit columns
+        worksheet.Cells.AutoFitColumns();
     }
 
-    private void CreatePerformanceSummarySheet(ExcelPackage package, List<FuturesTrade> trades)
+    private void CreateOrUpdatePerformanceSummarySheet(ExcelPackage package, List<FuturesTrade> trades)
     {
-        var worksheet = package.Workbook.Worksheets.Add("Performance Summary");
+        var worksheetName = "Performance Summary";
+        var worksheet = package.Workbook.Worksheets[worksheetName];
+        
+        // Always recreate this sheet with latest data
+        if (worksheet != null)
+        {
+            package.Workbook.Worksheets.Delete(worksheet);
+        }
+        
+        worksheet = package.Workbook.Worksheets.Add(worksheetName);
         
         var row = 1;
 
@@ -418,9 +501,18 @@ public class ExcelExportService
         worksheet.Cells.AutoFitColumns();
     }
 
-    private void CreateTradePerformanceSheet(ExcelPackage package, List<FuturesTrade> trades)
+    private void CreateOrUpdateTradePerformanceSheet(ExcelPackage package, List<FuturesTrade> trades)
     {
-        var worksheet = package.Workbook.Worksheets.Add("Trade Performance");
+        var worksheetName = "Trade Performance";
+        var worksheet = package.Workbook.Worksheets[worksheetName];
+        
+        // Always recreate this sheet with latest data
+        if (worksheet != null)
+        {
+            package.Workbook.Worksheets.Delete(worksheet);
+        }
+        
+        worksheet = package.Workbook.Worksheets.Add(worksheetName);
         
         // Headers - Enhanced with position side
         var headers = new[] { "Date", "Symbol", "Side", "Position Side", "Type", "Quantity", "Entry Price", "Exit Price", "Realized P&L", "Fee", "Net P&L", "ROE %", "Leverage", "Duration" };
@@ -428,6 +520,7 @@ public class ExcelExportService
         {
             worksheet.Cells[1, i + 1].Value = headers[i];
         }
+        FormatHeaders(worksheet, headers.Length);
 
         // Data
         var row = 2;
@@ -437,7 +530,7 @@ public class ExcelExportService
             var netPnl = trade.RealizedPnl - trade.Fee;
             
             worksheet.Cells[row, 1].Value = trade.TradeDateTime;
-            worksheet.Cells[row, 1].Style.Numberformat.Format = "dd/mm/yyyy hh:mm:ss";
+            worksheet.Cells[row, 1].Style.Numberformat.Format = "yyyy-mm-dd hh:mm:ss";
             worksheet.Cells[row, 2].Value = trade.Symbol;
             worksheet.Cells[row, 3].Value = trade.Side;
             worksheet.Cells[row, 4].Value = trade.PositionSide.ToString().ToUpper();
@@ -467,12 +560,21 @@ public class ExcelExportService
             row++;
         }
 
-        FormatWorksheet(worksheet, headers.Length, row - 1);
+        worksheet.Cells.AutoFitColumns();
     }
 
-    private void CreateMonthlyPerformanceSheet(ExcelPackage package, List<FuturesTrade> trades)
+    private void CreateOrUpdateMonthlyPerformanceSheet(ExcelPackage package, List<FuturesTrade> trades)
     {
-        var worksheet = package.Workbook.Worksheets.Add("Monthly Performance");
+        var worksheetName = "Monthly Performance";
+        var worksheet = package.Workbook.Worksheets[worksheetName];
+        
+        // Always recreate this sheet with latest data
+        if (worksheet != null)
+        {
+            package.Workbook.Worksheets.Delete(worksheet);
+        }
+        
+        worksheet = package.Workbook.Worksheets.Add(worksheetName);
         
         // Group trades by month
         var monthlyData = trades
@@ -496,6 +598,7 @@ public class ExcelExportService
         {
             worksheet.Cells[1, i + 1].Value = headers[i];
         }
+        FormatHeaders(worksheet, headers.Length);
 
         // Data
         var row = 2;
@@ -521,12 +624,21 @@ public class ExcelExportService
             row++;
         }
 
-        FormatWorksheet(worksheet, headers.Length, row - 1);
+        worksheet.Cells.AutoFitColumns();
     }
 
-    private void CreateSymbolPerformanceSheet(ExcelPackage package, List<FuturesTrade> trades)
+    private void CreateOrUpdateSymbolPerformanceSheet(ExcelPackage package, List<FuturesTrade> trades)
     {
-        var worksheet = package.Workbook.Worksheets.Add("Symbol Performance");
+        var worksheetName = "Symbol Performance";
+        var worksheet = package.Workbook.Worksheets[worksheetName];
+        
+        // Always recreate this sheet with latest data
+        if (worksheet != null)
+        {
+            package.Workbook.Worksheets.Delete(worksheet);
+        }
+        
+        worksheet = package.Workbook.Worksheets.Add(worksheetName);
         
         // Group trades by symbol
         var symbolData = trades
@@ -553,6 +665,7 @@ public class ExcelExportService
         {
             worksheet.Cells[1, i + 1].Value = headers[i];
         }
+        FormatHeaders(worksheet, headers.Length);
 
         // Data
         var row = 2;
@@ -581,12 +694,21 @@ public class ExcelExportService
             row++;
         }
 
-        FormatWorksheet(worksheet, headers.Length, row - 1);
+        worksheet.Cells.AutoFitColumns();
     }
 
-    private void CreateSummarySheet(ExcelPackage package, List<Balance> spotBalances, List<FuturesBalance> futuresBalances, List<Position> positions)
+    private void CreateOrUpdateSummarySheet(ExcelPackage package, List<Balance> spotBalances, List<FuturesBalance> futuresBalances, List<Position> positions)
     {
-        var worksheet = package.Workbook.Worksheets.Add("Portfolio Summary");
+        var worksheetName = "Portfolio Summary";
+        var worksheet = package.Workbook.Worksheets[worksheetName];
+        
+        // Always recreate this sheet with latest data
+        if (worksheet != null)
+        {
+            package.Workbook.Worksheets.Delete(worksheet);
+        }
+        
+        worksheet = package.Workbook.Worksheets.Add(worksheetName);
         
         var row = 1;
 
@@ -654,29 +776,15 @@ public class ExcelExportService
         worksheet.Cells.AutoFitColumns();
     }
 
-    private void FormatWorksheet(ExcelWorksheet worksheet, int columns, int rows)
+    private void FormatHeaders(ExcelWorksheet worksheet, int columns)
     {
-        // Format headers
         using (var range = worksheet.Cells[1, 1, 1, columns])
         {
             range.Style.Font.Bold = true;
-            // Set fill pattern first, then background color (EPPlus requirement)
             range.Style.Fill.PatternType = ExcelFillStyle.Solid;
             range.Style.Fill.BackgroundColor.SetColor(Color.LightBlue);
             range.Style.Border.BorderAround(ExcelBorderStyle.Thin);
         }
-
-        // Format data range
-        if (rows > 1)
-        {
-            using (var range = worksheet.Cells[2, 1, rows, columns])
-            {
-                range.Style.Border.BorderAround(ExcelBorderStyle.Thin);
-            }
-        }
-
-        // Auto-fit columns
-        worksheet.Cells.AutoFitColumns();
 
         // Freeze header row
         worksheet.View.FreezePanes(2, 1);

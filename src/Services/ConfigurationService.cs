@@ -57,8 +57,7 @@ public class BybitApiSettings
 public class ExcelSettings
 {
     public string OutputDirectory { get; set; } = "./ExcelReports/";
-    public string FileNamePrefix { get; set; } = "CryptoPortfolio_";
-    public string DateFormat { get; set; } = "yyyy-MM-dd_HH-mm-ss";
+    public string FileName { get; set; } = "CryptoPortfolio.xlsx";
 }
 
 public class RateLimitingSettings
