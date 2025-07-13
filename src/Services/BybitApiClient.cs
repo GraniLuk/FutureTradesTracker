@@ -160,78 +160,31 @@ public class BybitApiClient : IDisposable
 
     public async Task<List<FuturesTrade>> GetFuturesTradeHistoryAsync(string? symbol = null, long? startTime = null, long? endTime = null, int limit = 50)
     {
-        const string endpoint = "/v5/order/history";
-        _logger.LogApiCall("Bybit", endpoint);
-
-        try
-        {
-            var queryParams = new Dictionary<string, string>
-            {
-                { "category", "linear" },
-                { "limit", Math.Min(limit, 50).ToString() }
-            };
-
-            if (!string.IsNullOrEmpty(symbol))
-                queryParams["symbol"] = symbol;
-
-            if (startTime.HasValue)
-                queryParams["startTime"] = startTime.Value.ToString();
-
-            if (endTime.HasValue)
-                queryParams["endTime"] = endTime.Value.ToString();
-
-            var response = await MakeAuthenticatedRequestAsync<BybitApiResponse<BybitOrderHistoryData>>(endpoint, queryParams);
-
-            if (response?.RetCode == 0 && response.Result?.List != null)
-            {
-                var trades = new List<FuturesTrade>();
-                
-                // Get position data to enrich with realized PnL information where available
-                Dictionary<string, Position>? positionsDict = null;
-                try
-                {
-                    var positions = await GetPositionsAsync(symbol);
-                    positionsDict = positions.ToDictionary(p => p.Symbol, p => p);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to fetch position data for realized PnL enrichment");
-                }
-                
-                foreach (var order in response.Result.List)
-                {
-                    var trade = FuturesTrade.FromBybitOrder(order);
-                    
-                    // Note: Bybit's /v5/order/history endpoint doesn't provide per-trade realized PnL
-                    // We attempt to provide cumulative realized PnL at the symbol level from position data
-                    // This is not the same as per-trade realized PnL but gives some insight into profitability
-                    if (positionsDict?.TryGetValue(trade.Symbol, out var position) == true)
-                    {
-                        // Use cumulative realized PnL for the symbol
-                        // Important: This represents total realized PnL for the symbol, not for this specific trade
-                        trade.RealizedPnl = position.CumRealisedPnl;
-                    }
-                    else
-                    {
-                        // No position data available, leave RealizedPnl as 0
-                        trade.RealizedPnl = 0m;
-                    }
-                    
-                    trades.Add(trade);
-                }
-
-                _logger.LogApiSuccess("Bybit", endpoint, trades.Count);
-                return trades;
-            }
-
-            _logger.LogWarning("Bybit API returned unsuccessful response for {Endpoint}: {Message}", endpoint, response?.RetMsg);
-            return new List<FuturesTrade>();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogApiError("Bybit", endpoint, ex);
-            return new List<FuturesTrade>();
-        }
+        _logger.LogInformation("Fetching futures order history and closed PnL data as separate records");
+        
+        // Fetch order history and closed PnL in parallel for better performance
+        var orderHistoryTask = GetFuturesOrderHistoryAsync(symbol, startTime, endTime, limit);
+        var closedPnlTask = GetClosedPnlAsync(symbol, startTime, endTime, limit);
+        
+        await Task.WhenAll(orderHistoryTask, closedPnlTask);
+        
+        var orders = await orderHistoryTask;
+        var closedPnlRecords = await closedPnlTask;
+        
+        var allTrades = new List<FuturesTrade>();
+        
+        // Add all order history records as trades
+        var orderTrades = orders.Select(order => FuturesTrade.FromBybitOrder(order)).ToList();
+        allTrades.AddRange(orderTrades);
+        
+        // Add all closed PnL records as separate trades with realized PnL
+        var pnlTrades = closedPnlRecords.Select(pnl => FuturesTrade.FromBybitClosedPnl(pnl)).ToList();
+        allTrades.AddRange(pnlTrades);
+        
+        _logger.LogInformation("Retrieved {OrderCount} order records and {PnlCount} closed PnL records, total {TotalTrades} trade records", 
+            orders.Count, closedPnlRecords.Count, allTrades.Count);
+        
+        return allTrades;
     }
 
     public async Task<List<Position>> GetPositionsAsync(string? symbol = null)
@@ -262,6 +215,7 @@ public class BybitApiClient : IDisposable
                     EntryPrice = decimal.Parse(p.AvgPrice),
                     MarkPrice = decimal.Parse(p.MarkPrice),
                     UnrealizedPnl = decimal.Parse(p.UnrealisedPnl),
+                    CumRealisedPnl = decimal.Parse(p.CumRealisedPnl),
                     Leverage = decimal.Parse(p.Leverage),
                     UpdateTime = long.Parse(p.UpdatedTime),
                     Exchange = "Bybit"
@@ -278,6 +232,130 @@ public class BybitApiClient : IDisposable
         {
             _logger.LogApiError("Bybit", endpoint, ex);
             return new List<Position>();
+        }
+    }
+
+    public async Task<List<FuturesTrade>> GetFuturesExecutionHistoryAsync(string? symbol = null, long? startTime = null, long? endTime = null, int limit = 50)
+    {
+        const string endpoint = "/v5/execution/list";
+        _logger.LogApiCall("Bybit", endpoint);
+
+        try
+        {
+            var queryParams = new Dictionary<string, string>
+            {
+                { "category", "linear" },
+                { "limit", Math.Min(limit, 100).ToString() } // Execution endpoint supports up to 100
+            };
+
+            if (!string.IsNullOrEmpty(symbol))
+                queryParams["symbol"] = symbol;
+
+            if (startTime.HasValue)
+                queryParams["startTime"] = startTime.Value.ToString();
+
+            if (endTime.HasValue)
+                queryParams["endTime"] = endTime.Value.ToString();
+
+            var response = await MakeAuthenticatedRequestAsync<BybitApiResponse<BybitExecutionData>>(endpoint, queryParams);
+
+            if (response?.RetCode == 0 && response.Result?.List != null)
+            {
+                var trades = response.Result.List
+                    .Select(execution => FuturesTrade.FromBybitExecution(execution))
+                    .ToList();
+
+                _logger.LogApiSuccess("Bybit", endpoint, trades.Count);
+                return trades;
+            }
+
+            _logger.LogWarning("Bybit API returned unsuccessful response for {Endpoint}: {Message}", endpoint, response?.RetMsg);
+            return new List<FuturesTrade>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogApiError("Bybit", endpoint, ex);
+            return new List<FuturesTrade>();
+        }
+    }
+
+    public async Task<List<BybitOrder>> GetFuturesOrderHistoryAsync(string? symbol = null, long? startTime = null, long? endTime = null, int limit = 50)
+    {
+        const string endpoint = "/v5/order/history";
+        _logger.LogApiCall("Bybit", endpoint);
+
+        try
+        {
+            var queryParams = new Dictionary<string, string>
+            {
+                { "category", "linear" },
+                { "limit", Math.Min(limit, 50).ToString() }
+            };
+
+            if (!string.IsNullOrEmpty(symbol))
+                queryParams["symbol"] = symbol;
+
+            if (startTime.HasValue)
+                queryParams["startTime"] = startTime.Value.ToString();
+
+            if (endTime.HasValue)
+                queryParams["endTime"] = endTime.Value.ToString();
+
+            var response = await MakeAuthenticatedRequestAsync<BybitApiResponse<BybitOrderHistoryData>>(endpoint, queryParams);
+
+            if (response?.RetCode == 0 && response.Result?.List != null)
+            {
+                _logger.LogApiSuccess("Bybit", endpoint, response.Result.List.Count);
+                return response.Result.List;
+            }
+
+            _logger.LogWarning("Bybit API returned unsuccessful response for {Endpoint}: {Message}", endpoint, response?.RetMsg);
+            return new List<BybitOrder>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogApiError("Bybit", endpoint, ex);
+            return new List<BybitOrder>();
+        }
+    }
+
+    public async Task<List<BybitClosedPnl>> GetClosedPnlAsync(string? symbol = null, long? startTime = null, long? endTime = null, int limit = 50)
+    {
+        const string endpoint = "/v5/position/closed-pnl";
+        _logger.LogApiCall("Bybit", endpoint);
+
+        try
+        {
+            var queryParams = new Dictionary<string, string>
+            {
+                { "category", "linear" },
+                { "limit", Math.Min(limit, 100).ToString() }
+            };
+
+            if (!string.IsNullOrEmpty(symbol))
+                queryParams["symbol"] = symbol;
+
+            if (startTime.HasValue)
+                queryParams["startTime"] = startTime.Value.ToString();
+
+            if (endTime.HasValue)
+                queryParams["endTime"] = endTime.Value.ToString();
+
+            var response = await MakeAuthenticatedRequestAsync<BybitApiResponse<BybitClosedPnlData>>(endpoint, queryParams);
+
+            if (response?.RetCode == 0 && response.Result?.List != null)
+            {
+                _logger.LogApiSuccess("Bybit", endpoint, response.Result.List.Count);
+                return response.Result.List;
+            }
+
+            _logger.LogWarning("Bybit API returned unsuccessful response for {Endpoint}: {Message}", endpoint, response?.RetMsg);
+            return new List<BybitClosedPnl>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogApiError("Bybit", endpoint, ex);
+            return new List<BybitClosedPnl>();
         }
     }
 
@@ -674,6 +752,131 @@ public class BybitPosition
     public string AvgPrice { get; set; } = "0";
     public string MarkPrice { get; set; } = "0";
     public string UnrealisedPnl { get; set; } = "0";
+    public string CumRealisedPnl { get; set; } = "0";
     public string Leverage { get; set; } = "1";
+    public string UpdatedTime { get; set; } = "0";
+}
+
+public class BybitExecutionData
+{
+    public List<BybitExecution>? List { get; set; }
+}
+
+public class BybitExecution
+{
+    [JsonPropertyName("execId")]
+    public string ExecId { get; set; } = string.Empty;
+    
+    [JsonPropertyName("symbol")]
+    public string Symbol { get; set; } = string.Empty;
+    
+    [JsonPropertyName("orderId")]
+    public string OrderId { get; set; } = string.Empty;
+    
+    [JsonPropertyName("orderLinkId")]
+    public string OrderLinkId { get; set; } = string.Empty;
+    
+    [JsonPropertyName("side")]
+    public string Side { get; set; } = string.Empty;
+    
+    [JsonPropertyName("execQty")]
+    public string ExecQty { get; set; } = "0";
+    
+    [JsonPropertyName("execPrice")]
+    public string ExecPrice { get; set; } = "0";
+    
+    [JsonPropertyName("execValue")]
+    public string ExecValue { get; set; } = "0";
+    
+    [JsonPropertyName("execTime")]
+    public string ExecTime { get; set; } = "0";
+    
+    [JsonPropertyName("execFee")]
+    public string ExecFee { get; set; } = "0";
+    
+    [JsonPropertyName("feeRate")]
+    public string FeeRate { get; set; } = "0";
+    
+    [JsonPropertyName("execType")]
+    public string ExecType { get; set; } = string.Empty;
+    
+    [JsonPropertyName("orderType")]
+    public string OrderType { get; set; } = string.Empty;
+    
+    [JsonPropertyName("closedSize")]
+    public string ClosedSize { get; set; } = "0";
+    
+    [JsonPropertyName("markPrice")]
+    public string MarkPrice { get; set; } = "0";
+    
+    // This might contain per-execution realized PnL
+    [JsonPropertyName("closedPnl")]
+    public string ClosedPnl { get; set; } = "0";
+}
+
+// Bybit Closed PnL models
+public class BybitClosedPnlData
+{
+    public List<BybitClosedPnl>? List { get; set; }
+    public string NextPageCursor { get; set; } = string.Empty;
+}
+
+public class BybitClosedPnl
+{
+    [JsonPropertyName("symbol")]
+    public string Symbol { get; set; } = string.Empty;
+    
+    [JsonPropertyName("orderId")]
+    public string OrderId { get; set; } = string.Empty;
+    
+    [JsonPropertyName("side")]
+    public string Side { get; set; } = string.Empty;
+    
+    [JsonPropertyName("qty")]
+    public string Qty { get; set; } = "0";
+    
+    [JsonPropertyName("orderPrice")]
+    public string OrderPrice { get; set; } = "0";
+    
+    [JsonPropertyName("orderType")]
+    public string OrderType { get; set; } = string.Empty;
+    
+    [JsonPropertyName("execType")]
+    public string ExecType { get; set; } = string.Empty;
+    
+    [JsonPropertyName("closedSize")]
+    public string ClosedSize { get; set; } = "0";
+    
+    [JsonPropertyName("cumEntryValue")]
+    public string CumEntryValue { get; set; } = "0";
+    
+    [JsonPropertyName("avgEntryPrice")]
+    public string AvgEntryPrice { get; set; } = "0";
+    
+    [JsonPropertyName("cumExitValue")]
+    public string CumExitValue { get; set; } = "0";
+    
+    [JsonPropertyName("avgExitPrice")]
+    public string AvgExitPrice { get; set; } = "0";
+    
+    [JsonPropertyName("closedPnl")]
+    public string ClosedPnl { get; set; } = "0";
+    
+    [JsonPropertyName("fillCount")]
+    public string FillCount { get; set; } = "0";
+    
+    [JsonPropertyName("leverage")]
+    public string Leverage { get; set; } = "1";
+    
+    [JsonPropertyName("openFee")]
+    public string OpenFee { get; set; } = "0";
+    
+    [JsonPropertyName("closeFee")]
+    public string CloseFee { get; set; } = "0";
+    
+    [JsonPropertyName("createdTime")]
+    public string CreatedTime { get; set; } = "0";
+    
+    [JsonPropertyName("updatedTime")]
     public string UpdatedTime { get; set; } = "0";
 }

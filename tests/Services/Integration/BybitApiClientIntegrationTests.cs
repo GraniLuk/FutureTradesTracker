@@ -222,7 +222,7 @@ public class BybitApiClientIntegrationTests
     {
         // Arrange
         var today = DateTimeOffset.UtcNow;
-        var endTime = today.AddDays(-18);
+        var endTime = today;
         var startTime = endTime.AddDays(-6); // Last 30 days
         
         var startTimeMs = startTime.ToUnixTimeMilliseconds();

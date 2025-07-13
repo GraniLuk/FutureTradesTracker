@@ -160,6 +160,131 @@ public class FuturesTrade
         return trade;
     }
 
+    /// <summary>
+    /// Creates a FuturesTrade instance from a Bybit execution (fill) record
+    /// </summary>
+    /// <param name="bybitExecution">The Bybit execution record</param>
+    /// <returns>A FuturesTrade instance with mapped values from the Bybit execution</returns>
+    public static FuturesTrade FromBybitExecution(BybitExecution bybitExecution)
+    {
+        var trade = new FuturesTrade
+        {
+            Symbol = bybitExecution.Symbol,
+            OrderId = bybitExecution.OrderId,
+            Side = bybitExecution.Side,
+            PositionSide = ParsePositionSide(bybitExecution.Side),
+            OrderType = bybitExecution.OrderType,
+            Status = "FILLED", // Executions are always filled
+            TimeInForce = "IOC", // Default for executions
+            FeeAsset = "USDT", // Bybit typically uses USDT for futures fees
+            Exchange = "Bybit"
+        };
+
+        // Parse decimal values with error handling
+        if (decimal.TryParse(bybitExecution.ExecQty, out var execQty))
+        {
+            trade.Quantity = execQty;
+            trade.ExecutedQuantity = execQty; // For executions, these are the same
+        }
+
+        if (decimal.TryParse(bybitExecution.ExecPrice, out var execPrice))
+        {
+            trade.Price = execPrice;
+            trade.AvgPrice = execPrice; // For single execution, avg price = exec price
+        }
+
+        if (decimal.TryParse(bybitExecution.ExecValue, out var execValue))
+            trade.CumulativeQuoteQuantity = execValue;
+
+        if (decimal.TryParse(bybitExecution.ExecFee, out var execFee))
+            trade.Fee = execFee;
+
+        // This is the key field - per-execution realized PnL!
+        if (decimal.TryParse(bybitExecution.ClosedPnl, out var closedPnl))
+            trade.RealizedPnl = closedPnl;
+
+        // Parse timestamps
+        if (long.TryParse(bybitExecution.ExecTime, out var execTime))
+        {
+            trade.Time = execTime;
+            trade.UpdateTime = execTime; // For executions, these are typically the same
+        }
+
+        return trade;
+    }
+
+    /// <summary>
+    /// Creates a FuturesTrade instance from a Bybit closed PnL record
+    /// </summary>
+    /// <param name="bybitClosedPnl">The Bybit closed PnL record</param>
+    /// <returns>A FuturesTrade instance with mapped values from the Bybit closed PnL record</returns>
+    public static FuturesTrade FromBybitClosedPnl(BybitClosedPnl bybitClosedPnl)
+    {
+        var trade = new FuturesTrade
+        {
+            Symbol = bybitClosedPnl.Symbol,
+            OrderId = bybitClosedPnl.OrderId,
+            Side = bybitClosedPnl.Side,
+            PositionSide = ParsePositionSide(bybitClosedPnl.Side),
+            OrderType = bybitClosedPnl.OrderType,
+            Status = "CLOSED", // Closed PnL records represent closed positions
+            TimeInForce = "IOC", // Default for closed positions
+            FeeAsset = "USDT", // Bybit typically uses USDT for futures fees
+            Exchange = "Bybit" // Distinguish from regular orders
+        };
+
+        // Parse decimal values with error handling
+        if (decimal.TryParse(bybitClosedPnl.Qty, out var qty))
+        {
+            trade.Quantity = qty;
+            trade.ExecutedQuantity = qty; // For closed positions, these are the same
+        }
+
+        if (decimal.TryParse(bybitClosedPnl.ClosedSize, out var closedSize))
+            trade.ExecutedQuantity = closedSize; // Use closed size as executed quantity
+
+        if (decimal.TryParse(bybitClosedPnl.OrderPrice, out var orderPrice))
+            trade.Price = orderPrice;
+
+        if (decimal.TryParse(bybitClosedPnl.AvgEntryPrice, out var avgEntryPrice))
+            trade.AvgPrice = avgEntryPrice;
+
+        if (decimal.TryParse(bybitClosedPnl.AvgExitPrice, out var avgExitPrice))
+            trade.AvgPrice = avgExitPrice; // Use exit price as the average price for closed positions
+
+        if (decimal.TryParse(bybitClosedPnl.CumExitValue, out var cumExitValue))
+            trade.CumulativeQuoteQuantity = cumExitValue;
+
+        // Parse fees - combine open and close fees
+        decimal totalFee = 0;
+        if (decimal.TryParse(bybitClosedPnl.OpenFee, out var openFee))
+            totalFee += openFee;
+        if (decimal.TryParse(bybitClosedPnl.CloseFee, out var closeFee))
+            totalFee += closeFee;
+        trade.Fee = totalFee;
+
+        // This is the key field - realized PnL from closed position!
+        if (decimal.TryParse(bybitClosedPnl.ClosedPnl, out var closedPnl))
+            trade.RealizedPnl = closedPnl;
+
+        // Parse leverage
+        if (decimal.TryParse(bybitClosedPnl.Leverage, out var leverage))
+            trade.Leverage = leverage.ToString();
+
+        // Parse timestamps
+        if (long.TryParse(bybitClosedPnl.CreatedTime, out var createdTime))
+        {
+            trade.Time = createdTime;
+        }
+
+        if (long.TryParse(bybitClosedPnl.UpdatedTime, out var updatedTime))
+        {
+            trade.UpdateTime = updatedTime;
+        }
+
+        return trade;
+    }
+
     private static PositionSide ParsePositionSide(string positionSide)
     {
         return positionSide?.ToUpperInvariant() switch
@@ -168,6 +293,8 @@ public class FuturesTrade
             "1" => PositionSide.Short,
             "LONG" => PositionSide.Long,
             "SHORT" => PositionSide.Short,
+            "BUY" => PositionSide.Long,  // Bybit execution endpoint uses "Buy" for long positions
+            "SELL" => PositionSide.Short, // Bybit execution endpoint uses "Sell" for short positions
             _ => throw new ArgumentException($"Unknown position side: {positionSide}")
         };
     }
