@@ -224,7 +224,7 @@ public class BybitApiClientIntegrationTests
         var today = DateTimeOffset.UtcNow;
         var endTime = today;
         var startTime = endTime.AddDays(-6); // Last 30 days
-        
+
         var startTimeMs = startTime.ToUnixTimeMilliseconds();
         var endTimeMs = endTime.ToUnixTimeMilliseconds();
         const string symbol = "VIRTUALUSDT";
@@ -235,24 +235,29 @@ public class BybitApiClientIntegrationTests
         // Assert
         trades.Should().NotBeNull();
         trades.Should().BeOfType<List<FuturesTrade>>();
-        
+
         // All returned trades should be for the specified symbol
         trades.Should().OnlyContain(t => t.Symbol == symbol);
-        
+
         Console.WriteLine($"Retrieved {trades.Count} futures trades for {symbol} from Bybit");
-        
+
         var firstTrade = trades.FirstOrDefault();
         Assert.That(firstTrade.OrderId, Is.Not.Null, "First trade should have a valid OrderId");
         Assert.That(firstTrade.Symbol, Is.EqualTo(symbol), "First trade should match the requested symbol");
         Assert.That(firstTrade.Time, Is.GreaterThan(0), "First trade should have a valid timestamp");
         Assert.That(firstTrade.Exchange, Is.EqualTo("Bybit"), "First trade should be from Bybit exchange");
         Assert.That(firstTrade.PositionSide, Is.EqualTo(PositionSide.Long));
+        Assert.That(firstTrade.RealizedPnl, Is.EqualTo(0), "First trade should have a non-negative realized PnL");
 
-        foreach (var trade in trades.Take(3)) // Show first 3 trades
-        {
-            Console.WriteLine($"Trade: {trade.Symbol} - {trade.Side} - Qty: {trade.ExecutedQuantity} - Price: {trade.Price} - Time: {DateTimeOffset.FromUnixTimeMilliseconds(trade.Time):yyyy-MM-dd HH:mm:ss}");
-            trade.Exchange.Should().Be("Bybit");
-        }
+        var secondTrade = trades.Skip(1).FirstOrDefault();
+        Assert.That(secondTrade, Is.Not.Null, "Second trade should exist if there are multiple trades");
+        Assert.That(secondTrade.OrderId, Is.Not.Null, "Second trade should have a valid OrderId");
+        Assert.That(secondTrade.Symbol, Is.EqualTo(symbol), "Second trade should match the requested symbol");
+        Assert.That(secondTrade.Time, Is.GreaterThan(0), "Second trade should have a valid timestamp");
+        Assert.That(secondTrade.Exchange, Is.EqualTo("Bybit"), "Second trade should be from Bybit exchange");
+        Assert.That(secondTrade.PositionSide, Is.EqualTo(PositionSide.Long));
+        Assert.That(secondTrade.RealizedPnl, Is.LessThan(0), "Second trade should have a non-negative realized PnL");
+        Assert.That(secondTrade.Leverage, Is.EqualTo("5X"), "Second trade should have a leverage of 1");
     }
 
     [Test]

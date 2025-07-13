@@ -224,7 +224,7 @@ public class FuturesTrade
         {
             Symbol = bybitClosedPnl.Symbol,
             OrderId = bybitClosedPnl.OrderId,
-            Side = bybitClosedPnl.Side,
+            Side = bybitClosedPnl.Side.ToUpper(),
             PositionSide = ParsePositionSide(bybitClosedPnl.Side),
             OrderType = bybitClosedPnl.OrderType,
             Status = "CLOSED", // Closed PnL records represent closed positions
@@ -269,7 +269,7 @@ public class FuturesTrade
 
         // Parse leverage
         if (decimal.TryParse(bybitClosedPnl.Leverage, out var leverage))
-            trade.Leverage = leverage.ToString();
+            trade.Leverage = leverage.ToString() + "X"; // Append 'x' to indicate leverage
 
         // Parse timestamps
         if (long.TryParse(bybitClosedPnl.CreatedTime, out var createdTime))
@@ -293,8 +293,8 @@ public class FuturesTrade
             "1" => PositionSide.Short,
             "LONG" => PositionSide.Long,
             "SHORT" => PositionSide.Short,
-            "BUY" => PositionSide.Long,  // Bybit execution endpoint uses "Buy" for long positions
-            "SELL" => PositionSide.Short, // Bybit execution endpoint uses "Sell" for short positions
+            "SELL" => PositionSide.Long,  // Bybit execution endpoint uses "Buy" for long positions
+            "BUY" => PositionSide.Short, // Bybit execution endpoint uses "Sell" for short positions
             _ => throw new ArgumentException($"Unknown position side: {positionSide}")
         };
     }
