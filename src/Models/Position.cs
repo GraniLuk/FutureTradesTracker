@@ -14,6 +14,8 @@ public class Position
 
     public decimal UnrealizedPnl { get; set; }
 
+    public decimal CumRealisedPnl { get; set; }
+
     public decimal Percentage { get; set; }
 
     public decimal IsolatedMargin { get; set; }

@@ -16,6 +16,8 @@ public class BybitApiClient : IDisposable
     private readonly ILogger<BybitApiClient> _logger;
     private readonly SemaphoreSlim _rateLimitSemaphore;
     private DateTime _lastRequestTime = DateTime.MinValue;
+    private long _clockSkewMs = 0; // Clock skew compensation in milliseconds
+    private bool _clockSkewDetected = false;
 
     public BybitApiClient(BybitApiSettings settings, RateLimitingSettings rateLimitSettings, ILogger<BybitApiClient> logger)
     {
@@ -182,9 +184,41 @@ public class BybitApiClient : IDisposable
 
             if (response?.RetCode == 0 && response.Result?.List != null)
             {
-                var trades = response.Result.List
-                    .Select(order => FuturesTrade.FromBybitOrder(order))
-                    .ToList();
+                var trades = new List<FuturesTrade>();
+                
+                // Get position data to enrich with realized PnL information where available
+                Dictionary<string, Position>? positionsDict = null;
+                try
+                {
+                    var positions = await GetPositionsAsync(symbol);
+                    positionsDict = positions.ToDictionary(p => p.Symbol, p => p);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to fetch position data for realized PnL enrichment");
+                }
+                
+                foreach (var order in response.Result.List)
+                {
+                    var trade = FuturesTrade.FromBybitOrder(order);
+                    
+                    // Note: Bybit's /v5/order/history endpoint doesn't provide per-trade realized PnL
+                    // We attempt to provide cumulative realized PnL at the symbol level from position data
+                    // This is not the same as per-trade realized PnL but gives some insight into profitability
+                    if (positionsDict?.TryGetValue(trade.Symbol, out var position) == true)
+                    {
+                        // Use cumulative realized PnL for the symbol
+                        // Important: This represents total realized PnL for the symbol, not for this specific trade
+                        trade.RealizedPnl = position.CumRealisedPnl;
+                    }
+                    else
+                    {
+                        // No position data available, leave RealizedPnl as 0
+                        trade.RealizedPnl = 0m;
+                    }
+                    
+                    trades.Add(trade);
+                }
 
                 _logger.LogApiSuccess("Bybit", endpoint, trades.Count);
                 return trades;
@@ -247,12 +281,9 @@ public class BybitApiClient : IDisposable
         }
     }
 
-    private async Task<T?> MakeAuthenticatedRequestAsync<T>(string endpoint, Dictionary<string, string>? queryParams = null)
+    private async Task<T?> MakeAuthenticatedRequestAsync<T>(string endpoint, Dictionary<string, string>? queryParams = null) where T : class
     {
         await ApplyRateLimitingAsync();
-
-        var timestamp = SignatureGenerator.GetUnixTimestamp().ToString();
-        var recvWindow = "5000";
 
         var queryString = "";
         if (queryParams != null && queryParams.Count > 0)
@@ -260,34 +291,60 @@ public class BybitApiClient : IDisposable
             queryString = string.Join("&", queryParams.Select(kvp => $"{kvp.Key}={kvp.Value}"));
         }
 
-        var signature = SignatureGenerator.GenerateBybitSignature(timestamp, _settings.ApiKey, recvWindow, queryString, _settings.SecretKey);
-
         var requestUri = endpoint;
         if (!string.IsNullOrEmpty(queryString))
         {
             requestUri += "?" + queryString;
         }
 
-        var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
-        request.Headers.Add("X-BAPI-API-KEY", _settings.ApiKey);
-        request.Headers.Add("X-BAPI-SIGN", signature);
-        request.Headers.Add("X-BAPI-SIGN-TYPE", "2");
-        request.Headers.Add("X-BAPI-TIMESTAMP", timestamp);
-        request.Headers.Add("X-BAPI-RECV-WINDOW", recvWindow);
-
         for (int attempt = 1; attempt <= _rateLimitSettings.RetryAttempts; attempt++)
         {
             try
             {
+                // Generate timestamp with clock skew compensation
+                var baseTimestamp = SignatureGenerator.GetUnixTimestamp();
+                var timestamp = (baseTimestamp + _clockSkewMs).ToString();
+                var recvWindow = "10000"; // Increased receive window to handle clock skew and network latency
+                
+                if (_clockSkewMs != 0)
+                {
+                    _logger.LogDebug("Applying clock skew compensation: {ClockSkewMs}ms (Base: {BaseTimestamp}, Adjusted: {AdjustedTimestamp})", 
+                        _clockSkewMs, baseTimestamp, timestamp);
+                }
+                
+                var signature = SignatureGenerator.GenerateBybitSignature(timestamp, _settings.ApiKey, recvWindow, queryString, _settings.SecretKey);
+
+                var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+                request.Headers.Add("X-BAPI-API-KEY", _settings.ApiKey);
+                request.Headers.Add("X-BAPI-SIGN", signature);
+                request.Headers.Add("X-BAPI-SIGN-TYPE", "2");
+                request.Headers.Add("X-BAPI-TIMESTAMP", timestamp);
+                request.Headers.Add("X-BAPI-RECV-WINDOW", recvWindow);
+
                 var response = await _httpClient.SendAsync(request);
+                var content = await response.Content.ReadAsStringAsync();
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var content = await response.Content.ReadAsStringAsync();
-                    return JsonSerializer.Deserialize<T>(content, new JsonSerializerOptions
+                    // Check for timestamp errors in the JSON response before deserializing
+                    if ((content.Contains("timestamp") || content.Contains("recv_window")) && 
+                        content.Contains("retCode") && !content.Contains("\"retCode\":0") && !_clockSkewDetected)
+                    {
+                        var skewDetected = TryExtractClockSkew(content);
+                        if (skewDetected && attempt == 1)
+                        {
+                            _logger.LogInformation("Clock skew detected and compensated: {ClockSkewMs}ms. Retrying request...", _clockSkewMs);
+                            _clockSkewDetected = true;
+                            continue; // Retry immediately with compensation
+                        }
+                    }
+
+                    var deserializedResponse = JsonSerializer.Deserialize<T>(content, new JsonSerializerOptions
                     {
                         PropertyNameCaseInsensitive = true
                     });
+
+                    return deserializedResponse;
                 }
 
                 if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
@@ -298,8 +355,7 @@ public class BybitApiClient : IDisposable
                     continue;
                 }
 
-                var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("Bybit API request failed with status {StatusCode}: {Content}", response.StatusCode, errorContent);
+                _logger.LogError("Bybit API request failed with status {StatusCode}: {Content}", response.StatusCode, content);
 
                 if (attempt < _rateLimitSettings.RetryAttempts)
                 {
@@ -316,6 +372,55 @@ public class BybitApiClient : IDisposable
         }
 
         return default;
+    }
+
+    /// <summary>
+    /// Attempts to extract clock skew from Bybit error message and set compensation
+    /// </summary>
+    /// <param name="errorContent">The error response content</param>
+    /// <returns>True if clock skew was detected and compensation was set</returns>
+    private bool TryExtractClockSkew(string errorContent)
+    {
+        try
+        {
+            // Parse error message format: req_timestamp[1752404596342],server_timestamp[1752404594907]
+            var reqMatch = System.Text.RegularExpressions.Regex.Match(errorContent, @"req_timestamp\[(\d+)\]");
+            var serverMatch = System.Text.RegularExpressions.Regex.Match(errorContent, @"server_timestamp\[(\d+)\]");
+
+            if (reqMatch.Success && serverMatch.Success)
+            {
+                var reqTimestamp = long.Parse(reqMatch.Groups[1].Value);
+                var serverTimestamp = long.Parse(serverMatch.Groups[1].Value);
+                
+                // Calculate clock skew (negative means our clock is fast)
+                var skew = serverTimestamp - reqTimestamp;
+                
+                _logger.LogInformation("Clock skew detected - Req: {ReqTimestamp}, Server: {ServerTimestamp}, Skew: {SkewMs}ms", 
+                    reqTimestamp, serverTimestamp, skew);
+                
+                // Only apply compensation if skew is significant (>100ms) and reasonable (<30 seconds)
+                if (Math.Abs(skew) > 100 && Math.Abs(skew) < 30000)
+                {
+                    _clockSkewMs = skew;
+                    _logger.LogInformation("Applied clock skew compensation: {ClockSkewMs}ms", _clockSkewMs);
+                    return true;
+                }
+                else
+                {
+                    _logger.LogWarning("Clock skew {SkewMs}ms is outside acceptable range (100ms to 30000ms)", skew);
+                }
+            }
+            else
+            {
+                _logger.LogDebug("Failed to match timestamp regex in error content: {ErrorContent}", errorContent);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to parse clock skew from error message: {ErrorContent}", errorContent);
+        }
+
+        return false;
     }
 
     private async Task ApplyRateLimitingAsync()

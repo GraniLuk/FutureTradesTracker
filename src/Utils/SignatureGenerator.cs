@@ -51,6 +51,16 @@ public static class SignatureGenerator
     }
 
     /// <summary>
+    /// Generates Unix timestamp in milliseconds with clock skew compensation
+    /// </summary>
+    /// <param name="clockSkewMs">Clock skew compensation in milliseconds (negative to compensate for fast local clock)</param>
+    /// <returns>Current Unix timestamp in milliseconds adjusted for clock skew</returns>
+    public static long GetUnixTimestampWithSkewCompensation(int clockSkewMs = 0)
+    {
+        return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + clockSkewMs;
+    }
+
+    /// <summary>
     /// Generates Unix timestamp in seconds
     /// </summary>
     /// <returns>Current Unix timestamp in seconds</returns>
