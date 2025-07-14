@@ -151,7 +151,7 @@ class Program
             var logger = loggerFactory.CreateLogger<Program>();
             logger.LogInformation("Fetching futures trade history in 6-day chunks...");
             
-            for (int i = 0; i < 5; i++) // 5 chunks of 6 days = 30 days
+            for (int i = 0; i < 1; i++) // 5 chunks of 6 days = 30 days
             {
                 var chunkEndTime = DateTimeOffset.UtcNow.AddDays(-i * 6).ToUnixTimeMilliseconds();
                 var chunkStartTime = DateTimeOffset.UtcNow.AddDays(-(i + 1) * 6).ToUnixTimeMilliseconds();
@@ -218,7 +218,7 @@ class Program
             logger.LogInformation("Fetching Bybit futures trade history in 6-day chunks...");
             
             var bybitFuturesTradeCount = 0;
-            for (int i = 0; i < 5; i++) // 5 chunks of 6 days = 30 days
+            for (int i = 0; i < 1; i++) // 5 chunks of 6 days = 30 days
             {
                 var chunkEndTime = DateTimeOffset.UtcNow.AddDays(-i * 6).ToUnixTimeMilliseconds();
                 var chunkStartTime = DateTimeOffset.UtcNow.AddDays(-(i + 1) * 6).ToUnixTimeMilliseconds();
